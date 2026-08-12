@@ -1,0 +1,156 @@
+package com.example.bookapp.View.user;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.LinearLayout;
+
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
+import com.example.bookapp.Adapter.user.OrderAdapter;
+import com.example.bookapp.Model.Order;
+import com.example.bookapp.R;
+import com.example.bookapp.Utils.Constants;
+import com.example.bookapp.Utils.FirebaseUtils;
+import com.google.android.material.tabs.TabLayout;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class OrderHistoryActivity extends AppCompatActivity {
+
+    public static final String EXTRA_INITIAL_STATUS = "extra_initial_status";
+
+    // Thứ tự phải khớp với thứ tự tab tự thêm ở setupTabs() bên dưới.
+    private static final String[] TAB_STATUSES = {
+            null, // "Tất cả"
+            Constants.ORDER_PENDING,
+            Constants.ORDER_SHIPPING,
+            Constants.ORDER_DELIVERED,
+            Constants.ORDER_CANCELLED
+    };
+
+    private RecyclerView rvOrders;
+    private SwipeRefreshLayout srlOrders;
+    private LinearLayout llEmptyOrders;
+    private TabLayout tabOrderStatus;
+
+    private OrderAdapter adapter;
+    private final List<Order> orderList = new ArrayList<>();
+
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_order_history);
+
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setNavigationOnClickListener(v -> finish());
+
+        bindViews();
+        setupRecyclerView();
+        setupTabs();
+
+        String initialStatus = getIntent().getStringExtra(EXTRA_INITIAL_STATUS);
+        selectTabForStatus(initialStatus);
+        loadOrders(initialStatus);
+
+        srlOrders.setOnRefreshListener(() -> loadOrders(currentSelectedStatus()));
+    }
+
+    private void bindViews() {
+        rvOrders = findViewById(R.id.rv_orders);
+        srlOrders = findViewById(R.id.srl_orders);
+        llEmptyOrders = findViewById(R.id.ll_empty_orders);
+        tabOrderStatus = findViewById(R.id.tab_order_status);
+    }
+
+    private void setupRecyclerView() {
+        rvOrders.setLayoutManager(new LinearLayoutManager(this));
+        adapter = new OrderAdapter(orderList, order -> {
+            Intent intent = new Intent(this, OrderDetailActivity.class);
+            intent.putExtra(OrderDetailActivity.EXTRA_ORDER_ID, order.getOrderId());
+            startActivity(intent);
+        });
+        rvOrders.setAdapter(adapter);
+    }
+
+    private void setupTabs() {
+        tabOrderStatus.addTab(tabOrderStatus.newTab().setText("Tất cả"));
+        tabOrderStatus.addTab(tabOrderStatus.newTab().setText("Chờ xác nhận"));
+        tabOrderStatus.addTab(tabOrderStatus.newTab().setText("Đang giao"));
+        tabOrderStatus.addTab(tabOrderStatus.newTab().setText("Đã giao"));
+        tabOrderStatus.addTab(tabOrderStatus.newTab().setText("Đã hủy"));
+
+        tabOrderStatus.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                loadOrders(TAB_STATUSES[tab.getPosition()]);
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {
+            }
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {
+            }
+        });
+    }
+
+    private void selectTabForStatus(@Nullable String status) {
+        for (int i = 0; i < TAB_STATUSES.length; i++) {
+            if ((status == null && TAB_STATUSES[i] == null) ||
+                    (status != null && status.equals(TAB_STATUSES[i]))) {
+                TabLayout.Tab tab = tabOrderStatus.getTabAt(i);
+                if (tab != null) tab.select();
+                break;
+            }
+        }
+    }
+
+    @Nullable
+    private String currentSelectedStatus() {
+        return TAB_STATUSES[tabOrderStatus.getSelectedTabPosition()];
+    }
+
+    private void loadOrders(@Nullable String statusFilter) {
+        String uid = FirebaseUtils.getCurrentUserId();
+        if (uid == null) return;
+
+        srlOrders.setRefreshing(true);
+
+        com.google.firebase.firestore.Query query = FirebaseUtils.getFirestore()
+                .collection(Constants.COLLECTION_ORDERS)
+                .whereEqualTo("userId", uid)
+                .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING);
+
+        if (statusFilter != null) {
+            // Lưu ý: kết hợp whereEqualTo + orderBy khác field thường cần composite index -
+            // Firestore sẽ in link tạo index sẵn trong Logcat nếu thiếu, bấm vào là xong.
+            query = query.whereEqualTo("orderStatus", statusFilter);
+        }
+
+        query.get()
+                .addOnSuccessListener(querySnapshot -> {
+                    srlOrders.setRefreshing(false);
+
+                    orderList.clear();
+                    querySnapshot.forEach(doc -> {
+                        Order order = doc.toObject(Order.class);
+                        order.setOrderId(doc.getId());
+                        orderList.add(order);
+                    });
+                    adapter.notifyDataSetChanged();
+
+                    boolean isEmpty = orderList.isEmpty();
+                    llEmptyOrders.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+                    rvOrders.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+                })
+                .addOnFailureListener(e -> srlOrders.setRefreshing(false));
+    }
+}
