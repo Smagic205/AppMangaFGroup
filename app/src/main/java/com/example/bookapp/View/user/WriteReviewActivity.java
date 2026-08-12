@@ -12,16 +12,12 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
-import com.example.bookapp.Model.Book;
-import com.example.bookapp.Model.Review;
-import com.example.bookapp.Model.User;
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.FirebaseUtils;
-import com.google.firebase.Timestamp;
-
-import java.util.UUID;
+import com.example.bookapp.ViewModel.WriteReviewViewModel;
 
 public class WriteReviewActivity extends AppCompatActivity {
 
@@ -36,6 +32,8 @@ public class WriteReviewActivity extends AppCompatActivity {
 
     private String orderId, bookId;
     private int selectedRating = 0;
+
+    private WriteReviewViewModel viewModel;
 
     private static final String[] RATING_LABELS = {
             "Chạm vào sao để đánh giá", "Rất tệ", "Tệ", "Bình thường", "Tốt", "Xuất sắc"
@@ -53,8 +51,37 @@ public class WriteReviewActivity extends AppCompatActivity {
         toolbar.setNavigationOnClickListener(v -> finish());
 
         bindViews();
-        loadBookInfo();
         setupStarClicks();
+
+        viewModel = new ViewModelProvider(this).get(WriteReviewViewModel.class);
+
+        viewModel.getBook().observe(this, book -> {
+            if (book == null) return;
+            tvBookTitle.setText(book.getTitle());
+            Glide.with(this).load(book.getCoverImageUrl())
+                    .placeholder(R.drawable.placeholder_book)
+                    .into(ivBookCover);
+            // Tên tác giả cần join thêm từ collection "authors" qua book.getAuthorIds()
+            // - lược bớt ở đây
+        });
+
+        viewModel.getSubmitSuccess().observe(this, success -> {
+            if (Boolean.TRUE.equals(success)) {
+                Toast.makeText(this, "Cảm ơn bạn đã đánh giá!", Toast.LENGTH_SHORT).show();
+                // TODO: cập nhật lại rating/ratingCount trung bình của book,
+                // nên xử lý bằng Cloud Function trigger onCreate của collection reviews
+                finish();
+            }
+        });
+
+        viewModel.getErrorMessage().observe(this, error -> {
+            if (error != null) {
+                btnSubmit.setEnabled(true);
+                Toast.makeText(this, "Lỗi: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        if (bookId != null) viewModel.loadBook(bookId);
 
         btnSubmit.setOnClickListener(v -> submitReview());
     }
@@ -71,24 +98,6 @@ public class WriteReviewActivity extends AppCompatActivity {
                 findViewById(R.id.star1), findViewById(R.id.star2), findViewById(R.id.star3),
                 findViewById(R.id.star4), findViewById(R.id.star5)
         };
-    }
-
-    private void loadBookInfo() {
-        if (bookId == null) return;
-
-        FirebaseUtils.getFirestore().collection("books").document(bookId)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    Book book = doc.toObject(Book.class);
-                    if (book == null) return;
-
-                    tvBookTitle.setText(book.getTitle());
-                    Glide.with(this).load(book.getCoverImageUrl())
-                            .placeholder(R.drawable.placeholder_book)
-                            .into(ivBookCover);
-                    // Tên tác giả cần join thêm từ collection "authors" qua book.getAuthorIds()
-                    // - lược bớt ở đây, xử lý trong AuthorRepository khi wiring ViewModel thật
-                });
     }
 
     private void setupStarClicks() {
@@ -127,37 +136,6 @@ public class WriteReviewActivity extends AppCompatActivity {
         if (uid == null) return;
 
         btnSubmit.setEnabled(false);
-
-        FirebaseUtils.getFirestore().collection("users").document(uid).get()
-                .addOnSuccessListener(userDoc -> {
-                    User currentUser = userDoc.toObject(User.class);
-                    if (currentUser == null) return;
-
-                    String reviewId = UUID.randomUUID().toString();
-                    Review review = new Review(
-                            reviewId,
-                            bookId,
-                            uid,
-                            currentUser.getFullName(),
-                            currentUser.getAvatarUrl(),
-                            selectedRating,
-                            comment,
-                            orderId,
-                            Timestamp.now()
-                    );
-
-                    FirebaseUtils.getFirestore().collection("reviews").document(reviewId)
-                            .set(review)
-                            .addOnSuccessListener(unused -> {
-                                Toast.makeText(this, "Cảm ơn bạn đã đánh giá!", Toast.LENGTH_SHORT).show();
-                                // TODO: cập nhật lại rating/ratingCount trung bình của book,
-                                // nên xử lý bằng Cloud Function trigger onCreate của collection reviews
-                                finish();
-                            })
-                            .addOnFailureListener(e -> {
-                                btnSubmit.setEnabled(true);
-                                Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                            });
-                });
+        viewModel.submitReview(uid, bookId, selectedRating, comment, orderId);
     }
 }

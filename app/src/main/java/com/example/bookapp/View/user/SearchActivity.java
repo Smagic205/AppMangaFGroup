@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -23,10 +24,8 @@ import com.example.bookapp.Adapter.user.SearchKeywordAdapter;
 import com.example.bookapp.Model.Book;
 import com.example.bookapp.Model.Category;
 import com.example.bookapp.R;
-import com.example.bookapp.Utils.Constants;
-import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.SearchViewModel;
 import com.google.android.material.chip.ChipGroup;
-import com.google.firebase.firestore.Query;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,11 +45,13 @@ public class SearchActivity extends AppCompatActivity {
     private ChipGroup cgSortOptions;
 
     private final List<Category> categoryList = new ArrayList<>();
-    private final List<String> recentSearches = new ArrayList<>(); // TODO: lưu SharedPreferences để giữ qua các lần mở app
+    private final List<String> recentSearches = new ArrayList<>(); // TODO: lưu SharedPreferences
     private final List<String> popularKeywords = new ArrayList<>();
     private final List<Book> resultBookList = new ArrayList<>();
 
     private String activeCategoryId = null;
+
+    private SearchViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -62,12 +63,42 @@ public class SearchActivity extends AppCompatActivity {
         bindViews();
         setupRecyclerViews();
         setupClicks();
-        loadCategories();
+
+        viewModel = new ViewModelProvider(this).get(SearchViewModel.class);
+
+        viewModel.getCategories().observe(this, categories -> {
+            categoryList.clear();
+            if (categories != null) categoryList.addAll(categories);
+            rvSearchCategories.getAdapter().notifyDataSetChanged();
+        });
+
+        viewModel.getSearchResults().observe(this, books -> {
+            resultBookList.clear();
+            if (books != null) resultBookList.addAll(books);
+            rvSearchResults.getAdapter().notifyDataSetChanged();
+            tvResultCount.setText(resultBookList.size() + " kết quả");
+
+            boolean isEmpty = resultBookList.isEmpty();
+            llResultSection.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+            llEmptySearch.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+            if (isEmpty) tvEmptySearchMessage.setText("Không tìm thấy kết quả phù hợp");
+        });
+
+        viewModel.getIsLoading().observe(this, isLoading -> {
+            if (isLoading != null) {
+                pbSearchLoading.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+                if (isLoading) {
+                    llBrowseSection.setVisibility(View.GONE);
+                }
+            }
+        });
+
+        viewModel.loadCategories();
         loadPopularKeywords();
 
         if (activeCategoryId != null) {
             showActiveCategoryFilter();
-            searchBooks("", activeCategoryId, "relevance");
+            viewModel.searchBooks("", activeCategoryId, "relevance");
         } else {
             showBrowseSection();
         }
@@ -101,7 +132,7 @@ public class SearchActivity extends AppCompatActivity {
         rvSearchCategories.setAdapter(new SearchCategoryAdapter(categoryList, category -> {
             activeCategoryId = category.getCategoryId();
             showActiveCategoryFilter();
-            searchBooks(etSearch.getText().toString().trim(), activeCategoryId, currentSortKey());
+            viewModel.searchBooks(etSearch.getText().toString().trim(), activeCategoryId, currentSortKey());
         }));
 
         rvRecentSearches.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
@@ -134,12 +165,10 @@ public class SearchActivity extends AppCompatActivity {
 
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
             @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
             @Override
             public void afterTextChanged(Editable s) {
@@ -153,7 +182,7 @@ public class SearchActivity extends AppCompatActivity {
         });
 
         cgSortOptions.setOnCheckedStateChangeListener((group, checkedIds) ->
-                searchBooks(etSearch.getText().toString().trim(), activeCategoryId, currentSortKey()));
+                viewModel.searchBooks(etSearch.getText().toString().trim(), activeCategoryId, currentSortKey()));
     }
 
     private void runSearchFromKeyword(String keyword) {
@@ -167,7 +196,7 @@ public class SearchActivity extends AppCompatActivity {
             rvRecentSearches.getAdapter().notifyDataSetChanged();
         }
 
-        searchBooks(keyword, activeCategoryId, currentSortKey());
+        viewModel.searchBooks(keyword, activeCategoryId, currentSortKey());
     }
 
     private String currentSortKey() {
@@ -195,21 +224,6 @@ public class SearchActivity extends AppCompatActivity {
         llEmptySearch.setVisibility(View.GONE);
     }
 
-    private void loadCategories() {
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_CATEGORIES)
-                .whereEqualTo("isActive", true)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    categoryList.clear();
-                    querySnapshot.forEach(doc -> {
-                        Category category = doc.toObject(Category.class);
-                        category.setCategoryId(doc.getId());
-                        categoryList.add(category);
-                    });
-                    rvSearchCategories.getAdapter().notifyDataSetChanged();
-                });
-    }
-
     /**
      * TODO: thay danh sách mẫu này bằng thống kê từ khóa được tìm nhiều nhất thật
      * (vd 1 collection "searchStats" tăng dần counter mỗi lần searchBooks() chạy).
@@ -220,71 +234,5 @@ public class SearchActivity extends AppCompatActivity {
         popularKeywords.add("Tư duy nhanh và chậm");
         popularKeywords.add("Sách thiếu nhi");
         rvPopularKeywords.getAdapter().notifyDataSetChanged();
-    }
-
-    /**
-     * Firestore không hỗ trợ full-text search - đây là tìm theo tiền tố tên sách
-     * (title >= keyword && title <= keyword + "\uf8ff"), đủ dùng cho quy mô nhỏ.
-     * Nếu cần tìm gần đúng/toàn văn thật sự, nên tích hợp Algolia hoặc Typesense.
-     */
-    private void searchBooks(String keyword, @Nullable String categoryId, String sortKey) {
-        pbSearchLoading.setVisibility(View.VISIBLE);
-        llBrowseSection.setVisibility(View.GONE);
-
-        com.google.firebase.firestore.Query query = FirebaseUtils.getFirestore()
-                .collection(Constants.COLLECTION_BOOKS)
-                .whereEqualTo("isActive", true);
-
-        if (categoryId != null) {
-            query = query.whereArrayContains("categoryIds", categoryId);
-        }
-        if (!keyword.isEmpty()) {
-            query = query.orderBy("title")
-                    .startAt(keyword)
-                    .endAt(keyword + "\uf8ff");
-        } else {
-            switch (sortKey) {
-                case "price_asc":
-                    query = query.orderBy("price", Query.Direction.ASCENDING);
-                    break;
-                case "price_desc":
-                    query = query.orderBy("price", Query.Direction.DESCENDING);
-                    break;
-                case "rating":
-                    query = query.orderBy("rating", Query.Direction.DESCENDING);
-                    break;
-                case "bestseller":
-                    query = query.orderBy("soldCount", Query.Direction.DESCENDING);
-                    break;
-                default:
-                    query = query.orderBy("soldCount", Query.Direction.DESCENDING);
-            }
-        }
-
-        query.limit(40).get()
-                .addOnSuccessListener(querySnapshot -> {
-                    pbSearchLoading.setVisibility(View.GONE);
-
-                    resultBookList.clear();
-                    querySnapshot.forEach(doc -> {
-                        Book book = doc.toObject(Book.class);
-                        book.setBookId(doc.getId());
-                        resultBookList.add(book);
-                    });
-                    rvSearchResults.getAdapter().notifyDataSetChanged();
-                    tvResultCount.setText(resultBookList.size() + " kết quả");
-
-                    boolean isEmpty = resultBookList.isEmpty();
-                    llResultSection.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
-                    llEmptySearch.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
-                    if (isEmpty) {
-                        tvEmptySearchMessage.setText("Không tìm thấy kết quả phù hợp");
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    pbSearchLoading.setVisibility(View.GONE);
-                    // Lỗi thường gặp ở đây: thiếu composite index cho whereArrayContains + orderBy
-                    // - Firestore sẽ trả link tạo index sẵn trong Logcat, bấm link đó là xong.
-                });
     }
 }

@@ -12,9 +12,11 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.LoginViewModel;
 import com.google.android.material.textfield.TextInputEditText;
 
 public class LoginActivity extends AppCompatActivity {
@@ -22,6 +24,8 @@ public class LoginActivity extends AppCompatActivity {
     private TextInputEditText etEmail, etPassword;
     private Button btnLogin;
     private ProgressBar pbLogin;
+
+    private LoginViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -42,16 +46,31 @@ public class LoginActivity extends AppCompatActivity {
         tvForgotPassword.setOnClickListener(v ->
                 startActivity(new Intent(this, ForgotPasswordActivity.class)));
 
+        viewModel = new ViewModelProvider(this).get(LoginViewModel.class);
+
+        viewModel.getLoginSuccess().observe(this, success -> {
+            if (Boolean.TRUE.equals(success)) {
+                setLoading(false);
+                goToHome();
+            }
+        });
+
+        viewModel.getErrorMessage().observe(this, error -> {
+            if (error != null) {
+                setLoading(false);
+                Toast.makeText(this, "Đăng nhập thất bại: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
+
         btnLogin.setOnClickListener(v -> doLogin());
 
-        // TODO: findViewById(R.id.btn_google_login).setOnClickListener(...) khi wiring
-        // Google Sign-In thật (cần thêm GoogleSignInClient + xử lý ActivityResult riêng).
+        // TODO: btn_google_login khi wiring Google Sign-In thật
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        // Nếu đã đăng nhập từ trước (token còn hiệu lực) -> vào thẳng Home, khỏi login lại
+        // Nếu đã đăng nhập từ trước (token còn hiệu lực) -> vào thẳng Home
         if (FirebaseUtils.isLoggedIn()) {
             goToHome();
         }
@@ -71,16 +90,7 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         setLoading(true);
-
-        FirebaseUtils.getAuth().signInWithEmailAndPassword(email, password)
-                .addOnSuccessListener(authResult -> {
-                    setLoading(false);
-                    goToHome();
-                })
-                .addOnFailureListener(e -> {
-                    setLoading(false);
-                    Toast.makeText(this, "Đăng nhập thất bại: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+        viewModel.login(email, password);
     }
 
     private void goToHome() {

@@ -7,6 +7,7 @@ import android.widget.LinearLayout;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
@@ -14,7 +15,7 @@ import com.example.bookapp.Adapter.user.NotificationAdapter;
 import com.example.bookapp.Model.Notification;
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.FirebaseUtils;
-import com.google.firebase.firestore.Query;
+import com.example.bookapp.ViewModel.NotificationViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,8 @@ public class NotificationActivity extends AppCompatActivity {
 
     private NotificationAdapter adapter;
     private final List<Notification> notificationList = new ArrayList<>();
+
+    private NotificationViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -43,65 +46,43 @@ public class NotificationActivity extends AppCompatActivity {
         rvNotifications.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
         adapter = new NotificationAdapter(notificationList, (notification, position) -> {
             if (!notification.isRead()) {
-                markAsRead(notification);
+                viewModel.markAsRead(notification);
             }
             // TODO: điều hướng theo notification.getType() nếu cần
             // (vd type == "order" -> mở OrderDetailActivity)
         });
         rvNotifications.setAdapter(adapter);
 
-        findViewById(R.id.tv_mark_all_read).setOnClickListener(v -> markAllAsRead());
+        viewModel = new ViewModelProvider(this).get(NotificationViewModel.class);
 
-        srl.setOnRefreshListener(this::loadNotifications);
+        viewModel.getNotifications().observe(this, notifications -> {
+            srl.setRefreshing(false);
+            notificationList.clear();
+            if (notifications != null) notificationList.addAll(notifications);
+            adapter.notifyDataSetChanged();
+
+            boolean isEmpty = notificationList.isEmpty();
+            llEmpty.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+            rvNotifications.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+        });
+
+        viewModel.getIsLoading().observe(this, isLoading -> {
+            if (Boolean.TRUE.equals(isLoading)) srl.setRefreshing(true);
+        });
+
+        findViewById(R.id.tv_mark_all_read).setOnClickListener(v ->
+                viewModel.markAllAsRead(new ArrayList<>(notificationList)));
+
+        srl.setOnRefreshListener(() -> {
+            String uid = FirebaseUtils.getCurrentUserId();
+            if (uid != null) viewModel.loadNotifications(uid);
+        });
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        loadNotifications();
-    }
-
-    private void loadNotifications() {
         String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
-
-        srl.setRefreshing(true);
-
-        FirebaseUtils.getFirestore().collection("notifications")
-                .whereEqualTo("userId", uid)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    notificationList.clear();
-                    querySnapshot.forEach(doc -> {
-                        Notification notification = doc.toObject(Notification.class);
-                        notification.setNotificationId(doc.getId());
-                        notificationList.add(notification);
-                    });
-                    adapter.notifyDataSetChanged();
-                    srl.setRefreshing(false);
-
-                    boolean isEmpty = notificationList.isEmpty();
-                    llEmpty.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
-                    rvNotifications.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
-                })
-                .addOnFailureListener(e -> srl.setRefreshing(false));
-    }
-
-    private void markAsRead(Notification notification) {
-        notification.setRead(true);
-        adapter.notifyDataSetChanged();
-
-        FirebaseUtils.getFirestore().collection("notifications")
-                .document(notification.getNotificationId())
-                .update("isRead", true);
-    }
-
-    private void markAllAsRead() {
-        for (Notification notification : notificationList) {
-            if (!notification.isRead()) {
-                markAsRead(notification);
-            }
-        }
+        if (uid != null) viewModel.loadNotifications(uid);
     }
 }

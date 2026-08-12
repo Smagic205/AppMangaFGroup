@@ -10,9 +10,10 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.bookapp.R;
-import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.ForgotPasswordViewModel;
 import com.google.android.material.textfield.TextInputEditText;
 
 public class ForgotPasswordActivity extends AppCompatActivity {
@@ -20,6 +21,8 @@ public class ForgotPasswordActivity extends AppCompatActivity {
     private TextInputEditText etEmail;
     private Button btnSendReset;
     private ProgressBar pbSending;
+
+    private ForgotPasswordViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -33,6 +36,25 @@ public class ForgotPasswordActivity extends AppCompatActivity {
         findViewById(R.id.ib_back).setOnClickListener(v -> finish());
         findViewById(R.id.tv_back_to_login).setOnClickListener(v -> finish());
 
+        viewModel = new ViewModelProvider(this).get(ForgotPasswordViewModel.class);
+
+        viewModel.getResetEmailSent().observe(this, sent -> {
+            if (Boolean.TRUE.equals(sent)) {
+                setLoading(false);
+                Toast.makeText(this,
+                        "Đã gửi liên kết đặt lại mật khẩu tới " + etEmail.getText().toString().trim(),
+                        Toast.LENGTH_LONG).show();
+                finish();
+            }
+        });
+
+        viewModel.getErrorMessage().observe(this, error -> {
+            if (error != null) {
+                setLoading(false);
+                Toast.makeText(this, "Lỗi: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
+
         btnSendReset.setOnClickListener(v -> sendResetEmail());
     }
 
@@ -45,19 +67,7 @@ public class ForgotPasswordActivity extends AppCompatActivity {
         }
 
         setLoading(true);
-
-        FirebaseUtils.getAuth().sendPasswordResetEmail(email)
-                .addOnSuccessListener(unused -> {
-                    setLoading(false);
-                    Toast.makeText(this,
-                            "Đã gửi liên kết đặt lại mật khẩu tới " + email,
-                            Toast.LENGTH_LONG).show();
-                    finish();
-                })
-                .addOnFailureListener(e -> {
-                    setLoading(false);
-                    Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+        viewModel.sendResetEmail(email);
     }
 
     private void setLoading(boolean loading) {

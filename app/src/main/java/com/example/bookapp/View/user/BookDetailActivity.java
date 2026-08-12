@@ -11,20 +11,18 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.bookapp.Model.Book;
 import com.example.bookapp.R;
-import com.example.bookapp.Utils.Constants;
 import com.example.bookapp.Utils.FirebaseUtils;
-import com.google.firebase.Timestamp;
+import com.example.bookapp.ViewModel.BookDetailViewModel;
 
 import java.text.NumberFormat;
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 
 public class BookDetailActivity extends AppCompatActivity {
 
@@ -42,6 +40,8 @@ public class BookDetailActivity extends AppCompatActivity {
     private Book currentBook;
     private int quantity = 1;
 
+    private BookDetailViewModel viewModel;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,7 +54,31 @@ public class BookDetailActivity extends AppCompatActivity {
 
         bindViews();
         setupClicks();
-        loadBookDetail();
+
+        viewModel = new ViewModelProvider(this).get(BookDetailViewModel.class);
+
+        viewModel.getBook().observe(this, book -> {
+            if (book != null) {
+                currentBook = book;
+                bindBookData(book);
+                viewModel.loadRelatedBooks(bookId);
+                viewModel.incrementViewCount(bookId, book.getViewCount());
+            }
+        });
+
+        viewModel.getAddToCartSuccess().observe(this, success -> {
+            if (Boolean.TRUE.equals(success)) {
+                Toast.makeText(this, "Đã thêm vào giỏ hàng", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        viewModel.getErrorMessage().observe(this, error -> {
+            if (error != null) {
+                Toast.makeText(this, "Lỗi: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        if (bookId != null) viewModel.loadBook(bookId);
     }
 
     private void bindViews() {
@@ -109,23 +133,8 @@ public class BookDetailActivity extends AppCompatActivity {
         btnBuyNow.setOnClickListener(v -> addToCart());
 
         tvSeeAllReviews.setOnClickListener(v -> {
-            // TODO: mở màn danh sách toàn bộ review của sách (chưa có trong phạm vi hiện tại)
+            // TODO: mở màn danh sách toàn bộ review của sách
         });
-    }
-
-    private void loadBookDetail() {
-        if (bookId == null) return;
-
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS).document(bookId)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    Book book = doc.toObject(Book.class);
-                    if (book == null) return;
-
-                    book.setBookId(doc.getId());
-                    currentBook = book;
-                    bindBookData(book);
-                });
     }
 
     private void bindBookData(Book book) {
@@ -170,20 +179,6 @@ public class BookDetailActivity extends AppCompatActivity {
         if (uid == null || currentBook == null) return;
 
         double priceAtAdd = currentBook.isOnSale() ? currentBook.getSalePrice() : currentBook.getPrice();
-
-        Map<String, Object> cartItem = new HashMap<>();
-        cartItem.put("bookId", currentBook.getBookId());
-        cartItem.put("quantity", quantity);
-        cartItem.put("priceAtAdd", priceAtAdd);
-        cartItem.put("addedAt", Timestamp.now());
-
-        FirebaseUtils.getFirestore()
-                .collection("carts").document(uid)
-                .collection(Constants.SUBCOLLECTION_CART_ITEMS).document(currentBook.getBookId())
-                .set(cartItem)
-                .addOnSuccessListener(unused ->
-                        Toast.makeText(this, "Đã thêm vào giỏ hàng", Toast.LENGTH_SHORT).show())
-                .addOnFailureListener(e ->
-                        Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+        viewModel.addToCart(uid, currentBook.getBookId(), quantity, priceAtAdd);
     }
 }

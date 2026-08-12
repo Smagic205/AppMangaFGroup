@@ -10,12 +10,13 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.bookapp.Model.Address;
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.AddEditAddressViewModel;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.firebase.firestore.DocumentReference;
 
 import java.util.UUID;
 
@@ -28,6 +29,8 @@ public class AddEditAddressActivity extends AppCompatActivity {
     private Button btnSave;
 
     private String editingAddressId = null; // null = đang thêm mới
+
+    private AddEditAddressViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -50,7 +53,38 @@ public class AddEditAddressActivity extends AppCompatActivity {
         editingAddressId = getIntent().getStringExtra(EXTRA_ADDRESS_ID);
         if (editingAddressId != null) {
             toolbar.setTitle("Sửa địa chỉ");
-            loadExistingAddress(editingAddressId);
+        }
+
+        viewModel = new ViewModelProvider(this).get(AddEditAddressViewModel.class);
+
+        // Observe địa chỉ hiện có (chỉ dùng khi ở chế độ sửa)
+        viewModel.getAddress().observe(this, address -> {
+            if (address == null) return;
+            etName.setText(address.getName());
+            etPhone.setText(address.getPhone());
+            actvProvince.setText(address.getProvince(), false);
+            actvDistrict.setText(address.getDistrict(), false);
+            actvWard.setText(address.getWard(), false);
+            etDetailAddress.setText(address.getDetailAddress());
+        });
+
+        viewModel.getSaveSuccess().observe(this, success -> {
+            if (Boolean.TRUE.equals(success)) {
+                Toast.makeText(this, "Đã lưu địa chỉ", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        });
+
+        viewModel.getErrorMessage().observe(this, error -> {
+            if (error != null) {
+                Toast.makeText(this, "Lỗi: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Load địa chỉ hiện có nếu đang ở chế độ sửa
+        if (editingAddressId != null) {
+            String uid = FirebaseUtils.getCurrentUserId();
+            if (uid != null) viewModel.loadAddress(uid, editingAddressId);
         }
 
         btnSave.setOnClickListener(v -> saveAddress());
@@ -65,27 +99,6 @@ public class AddEditAddressActivity extends AppCompatActivity {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_dropdown_item_1line, sampleProvinces);
         actvProvince.setAdapter(adapter);
-    }
-
-    private void loadExistingAddress(String addressId) {
-        String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
-
-        FirebaseUtils.getFirestore()
-                .collection("users").document(uid)
-                .collection("addresses").document(addressId)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    Address address = doc.toObject(Address.class);
-                    if (address == null) return;
-
-                    etName.setText(address.getName());
-                    etPhone.setText(address.getPhone());
-                    actvProvince.setText(address.getProvince(), false);
-                    actvDistrict.setText(address.getDistrict(), false);
-                    actvWard.setText(address.getWard(), false);
-                    etDetailAddress.setText(address.getDetailAddress());
-                });
     }
 
     private void saveAddress() {
@@ -108,16 +121,6 @@ public class AddEditAddressActivity extends AppCompatActivity {
         String addressId = editingAddressId != null ? editingAddressId : UUID.randomUUID().toString();
         Address address = new Address(addressId, name, phone, province, district, ward, detail);
 
-        DocumentReference ref = FirebaseUtils.getFirestore()
-                .collection("users").document(uid)
-                .collection("addresses").document(addressId);
-
-        ref.set(address)
-                .addOnSuccessListener(unused -> {
-                    Toast.makeText(this, "Đã lưu địa chỉ", Toast.LENGTH_SHORT).show();
-                    finish();
-                })
-                .addOnFailureListener(e ->
-                        Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+        viewModel.saveAddress(uid, address);
     }
 }

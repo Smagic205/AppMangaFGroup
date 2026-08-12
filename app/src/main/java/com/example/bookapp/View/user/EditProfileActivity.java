@@ -12,15 +12,13 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
-import com.example.bookapp.Model.User;
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.EditProfileViewModel;
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -45,6 +43,8 @@ public class EditProfileActivity extends AppCompatActivity {
     private Uri selectedAvatarUri = null;
     private final Calendar birthdayCalendar = Calendar.getInstance();
 
+    private EditProfileViewModel viewModel;
+
     private final ActivityResultLauncher<String> pickImageLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
                 if (uri != null) {
@@ -64,7 +64,50 @@ public class EditProfileActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
 
-        loadCurrentUserData();
+        viewModel = new ViewModelProvider(this).get(EditProfileViewModel.class);
+
+        viewModel.getUser().observe(this, user -> {
+            if (user == null) return;
+
+            etFullName.setText(user.getFullName());
+            etEmail.setText(user.getEmail());
+            etPhone.setText(user.getPhone());
+
+            if ("female".equalsIgnoreCase(user.getGender())) {
+                rbFemale.setChecked(true);
+            } else if ("other".equalsIgnoreCase(user.getGender())) {
+                rbOther.setChecked(true);
+            } else {
+                rbMale.setChecked(true);
+            }
+
+            if (user.getBirthday() != null) {
+                birthdayCalendar.setTime(user.getBirthday().toDate());
+                updateBirthdayText();
+            }
+
+            if (user.getAvatarUrl() != null && !user.getAvatarUrl().isEmpty()) {
+                Glide.with(this).load(user.getAvatarUrl()).circleCrop().into(ivAvatar);
+            }
+        });
+
+        viewModel.getSaveSuccess().observe(this, success -> {
+            if (Boolean.TRUE.equals(success)) {
+                setLoading(false);
+                Toast.makeText(this, "Đã cập nhật hồ sơ", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        });
+
+        viewModel.getErrorMessage().observe(this, error -> {
+            if (error != null) {
+                setLoading(false);
+                Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        String uid = FirebaseUtils.getCurrentUserId();
+        if (uid != null) viewModel.loadUser(uid);
 
         ibChangeAvatar.setOnClickListener(v -> pickImageLauncher.launch("image/*"));
         llSelectBirthday.setOnClickListener(v -> showDatePicker());
@@ -85,43 +128,6 @@ public class EditProfileActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btn_save_profile);
         pbSaving = findViewById(R.id.pb_saving);
         llSelectBirthday = findViewById(R.id.ll_select_birthday);
-    }
-
-    /**
-     * Đổ dữ liệu user hiện tại lên form. Trong thực tế nên lấy từ
-     * UserRepository / UserViewModel thay vì gọi Firestore trực tiếp ở Activity.
-     */
-    private void loadCurrentUserData() {
-        String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
-
-        FirebaseUtils.getFirestore().collection("users").document(uid)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    User user = doc.toObject(User.class);
-                    if (user == null) return;
-
-                    etFullName.setText(user.getFullName());
-                    etEmail.setText(user.getEmail());
-                    etPhone.setText(user.getPhone());
-
-                    if ("female".equalsIgnoreCase(user.getGender())) {
-                        rbFemale.setChecked(true);
-                    } else if ("other".equalsIgnoreCase(user.getGender())) {
-                        rbOther.setChecked(true);
-                    } else {
-                        rbMale.setChecked(true);
-                    }
-
-                    if (user.getBirthday() != null) {
-                        birthdayCalendar.setTime(user.getBirthday().toDate());
-                        updateBirthdayText();
-                    }
-
-                    if (user.getAvatarUrl() != null && !user.getAvatarUrl().isEmpty()) {
-                        Glide.with(this).load(user.getAvatarUrl()).circleCrop().into(ivAvatar);
-                    }
-                });
     }
 
     private void showDatePicker() {
@@ -159,49 +165,8 @@ public class EditProfileActivity extends AppCompatActivity {
         if (uid == null) return;
 
         setLoading(true);
-
-        if (selectedAvatarUri != null) {
-            // Upload ảnh mới lên Firebase Storage trước, rồi mới cập nhật Firestore
-            StorageReference ref = FirebaseStorage.getInstance()
-                    .getReference("avatars/" + uid + ".jpg");
-
-            ref.putFile(selectedAvatarUri)
-                    .addOnSuccessListener(taskSnapshot ->
-                            ref.getDownloadUrl().addOnSuccessListener(downloadUri ->
-                                    updateUserDocument(uid, fullName, phone, gender, downloadUri.toString())))
-                    .addOnFailureListener(e -> {
-                        setLoading(false);
-                        Toast.makeText(this, "Upload ảnh thất bại: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    });
-        } else {
-            updateUserDocument(uid, fullName, phone, gender, null);
-        }
-    }
-
-    private void updateUserDocument(String uid, String fullName, String phone,
-                                     String gender, @Nullable String avatarUrl) {
-        FirebaseFirestore db = FirebaseUtils.getFirestore();
-
-        java.util.Map<String, Object> updates = new java.util.HashMap<>();
-        updates.put("fullName", fullName);
-        updates.put("phone", phone);
-        updates.put("gender", gender);
-        updates.put("birthday", new Timestamp(birthdayCalendar.getTime()));
-        if (avatarUrl != null) {
-            updates.put("avatarUrl", avatarUrl);
-        }
-
-        db.collection("users").document(uid)
-                .update(updates)
-                .addOnSuccessListener(unused -> {
-                    setLoading(false);
-                    Toast.makeText(this, "Đã cập nhật hồ sơ", Toast.LENGTH_SHORT).show();
-                    finish();
-                })
-                .addOnFailureListener(e -> {
-                    setLoading(false);
-                    Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+        Timestamp birthday = new Timestamp(birthdayCalendar.getTime());
+        viewModel.saveProfile(uid, fullName, phone, gender, birthday, selectedAvatarUri);
     }
 
     private void setLoading(boolean loading) {

@@ -13,15 +13,15 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.bookapp.Adapter.user.CartAdapter;
-import com.example.bookapp.Model.Book;
 import com.example.bookapp.Model.CartItem;
 import com.example.bookapp.R;
-import com.example.bookapp.Utils.Constants;
 import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.CartViewModel;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -40,7 +40,9 @@ public class CartFragment extends Fragment {
 
     private CartAdapter adapter;
     private final List<CartItem> cartItemList = new ArrayList<>();
-    private final Map<String, String[]> bookInfoCache = new HashMap<>(); // bookId -> [title, coverUrl]
+    private final Map<String, String[]> bookInfoCache = new HashMap<>();
+
+    private CartViewModel viewModel;
 
     @Nullable
     @Override
@@ -55,12 +57,43 @@ public class CartFragment extends Fragment {
         bindViews(view);
         setupRecyclerView();
         setupClicks();
+
+        viewModel = new ViewModelProvider(this).get(CartViewModel.class);
+
+        viewModel.getCartItems().observe(getViewLifecycleOwner(), items -> {
+            cartItemList.clear();
+            if (items != null) cartItemList.addAll(items);
+            adapter.notifyDataSetChanged();
+            updateEmptyState();
+            recalculateTotal();
+        });
+
+        viewModel.getBookInfoCache().observe(getViewLifecycleOwner(), cache -> {
+            if (cache != null) {
+                bookInfoCache.clear();
+                bookInfoCache.putAll(cache);
+                adapter.notifyDataSetChanged();
+            }
+        });
+
+        viewModel.getRemoveSuccessPosition().observe(getViewLifecycleOwner(), position -> {
+            if (position != null) {
+                adapter.getSelectedIds().remove(cartItemList.isEmpty() ? "" :
+                        (position < cartItemList.size() ? cartItemList.get(position).getBookId() : ""));
+                adapter.notifyDataSetChanged();
+                updateEmptyState();
+                recalculateTotal();
+            }
+        });
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        loadCartItems();
+        String uid = FirebaseUtils.getCurrentUserId();
+        if (uid != null && viewModel != null) {
+            viewModel.loadCart(uid);
+        }
     }
 
     private void bindViews(View view) {
@@ -80,12 +113,15 @@ public class CartFragment extends Fragment {
         adapter = new CartAdapter(cartItemList, bookInfoCache, new CartAdapter.OnCartActionListener() {
             @Override
             public void onQuantityChanged(CartItem item, int newQuantity) {
-                updateQuantity(item, newQuantity);
+                String uid = FirebaseUtils.getCurrentUserId();
+                if (uid != null) viewModel.updateQuantity(uid, item, newQuantity);
+                recalculateTotal();
             }
 
             @Override
             public void onRemove(CartItem item, int position) {
-                removeItem(item, position);
+                String uid = FirebaseUtils.getCurrentUserId();
+                if (uid != null) viewModel.removeItem(uid, item, position);
             }
 
             @Override
@@ -126,80 +162,6 @@ public class CartFragment extends Fragment {
                     new ArrayList<>(adapter.getSelectedIds()));
             startActivity(intent);
         });
-    }
-
-    private void loadCartItems() {
-        String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
-
-        FirebaseUtils.getFirestore()
-                .collection("carts").document(uid)
-                .collection(Constants.SUBCOLLECTION_CART_ITEMS)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    if (!isAdded()) return;
-                    cartItemList.clear();
-                    querySnapshot.forEach(doc -> {
-                        CartItem item = doc.toObject(CartItem.class);
-                        item.setBookId(doc.getId());
-                        cartItemList.add(item);
-                    });
-                    adapter.notifyDataSetChanged();
-                    updateEmptyState();
-                    fetchBookInfo();
-                    recalculateTotal();
-                });
-    }
-
-    private void fetchBookInfo() {
-        for (CartItem item : cartItemList) {
-            if (bookInfoCache.containsKey(item.getBookId())) continue;
-
-            FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
-                    .document(item.getBookId())
-                    .get()
-                    .addOnSuccessListener(doc -> {
-                        if (!isAdded()) return;
-                        Book book = doc.toObject(Book.class);
-                        if (book != null) {
-                            bookInfoCache.put(item.getBookId(),
-                                    new String[]{book.getTitle(), book.getCoverImageUrl()});
-                            adapter.notifyDataSetChanged();
-                        }
-                    });
-        }
-    }
-
-    private void updateQuantity(CartItem item, int newQuantity) {
-        item.setQuantity(newQuantity);
-        adapter.notifyDataSetChanged();
-        recalculateTotal();
-
-        String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
-
-        FirebaseUtils.getFirestore()
-                .collection("carts").document(uid)
-                .collection(Constants.SUBCOLLECTION_CART_ITEMS).document(item.getBookId())
-                .update("quantity", newQuantity);
-    }
-
-    private void removeItem(CartItem item, int position) {
-        String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
-
-        FirebaseUtils.getFirestore()
-                .collection("carts").document(uid)
-                .collection(Constants.SUBCOLLECTION_CART_ITEMS).document(item.getBookId())
-                .delete()
-                .addOnSuccessListener(unused -> {
-                    if (!isAdded()) return;
-                    cartItemList.remove(position);
-                    adapter.getSelectedIds().remove(item.getBookId());
-                    adapter.notifyItemRemoved(position);
-                    updateEmptyState();
-                    recalculateTotal();
-                });
     }
 
     private void recalculateTotal() {

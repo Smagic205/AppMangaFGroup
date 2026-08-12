@@ -8,14 +8,14 @@ import android.widget.LinearLayout;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.bookapp.Adapter.user.MyReviewAdapter;
-import com.example.bookapp.Model.Book;
 import com.example.bookapp.Model.Review;
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.FirebaseUtils;
-import com.google.firebase.firestore.Query;
+import com.example.bookapp.ViewModel.MyReviewsViewModel;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,7 +34,9 @@ public class MyReviewsActivity extends AppCompatActivity {
 
     private MyReviewAdapter adapter;
     private final List<Review> reviewList = new ArrayList<>();
-    private final Map<String, String[]> bookInfoCache = new HashMap<>(); // bookId -> [title, coverUrl]
+    private final Map<String, String[]> bookInfoCache = new HashMap<>();
+
+    private MyReviewsViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -48,67 +50,36 @@ public class MyReviewsActivity extends AppCompatActivity {
         llEmpty = findViewById(R.id.ll_empty);
 
         rvMyReviews.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
-        adapter = new MyReviewAdapter(reviewList, bookInfoCache, (review, position) -> confirmDelete(review, position));
+        adapter = new MyReviewAdapter(reviewList, bookInfoCache,
+                (review, position) -> confirmDelete(review, position));
         rvMyReviews.setAdapter(adapter);
 
-        loadMyReviews();
-    }
+        viewModel = new ViewModelProvider(this).get(MyReviewsViewModel.class);
 
-    private void loadMyReviews() {
-        String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
+        viewModel.getReviews().observe(this, reviews -> {
+            reviewList.clear();
+            if (reviews != null) reviewList.addAll(reviews);
+            updateEmptyState();
+            adapter.notifyDataSetChanged();
+        });
 
-        FirebaseUtils.getFirestore().collection("reviews")
-                .whereEqualTo("userId", uid)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    reviewList.clear();
-                    querySnapshot.forEach(doc -> {
-                        Review review = doc.toObject(Review.class);
-                        review.setReviewId(doc.getId());
-                        reviewList.add(review);
-                    });
-
-                    updateEmptyState();
-                    fetchBookInfoForReviews();
-                });
-    }
-
-    /**
-     * Review model không lưu title/coverImageUrl của sách (chỉ lưu bookId),
-     * nên phải join thêm 1 lượt sang collection "books" để hiển thị.
-     * Với số lượng review ít (thường vài chục), gọi từng get() riêng lẻ là
-     * đủ nhanh; nếu sau này nhiều hơn, nên đổi sang whereIn theo batch 10.
-     */
-    private void fetchBookInfoForReviews() {
-        if (reviewList.isEmpty()) return;
-
-        int[] remaining = {reviewList.size()};
-
-        for (Review review : reviewList) {
-            if (bookInfoCache.containsKey(review.getBookId())) {
-                remaining[0]--;
-                if (remaining[0] == 0) adapter.notifyDataSetChanged();
-                continue;
+        viewModel.getBookInfoCache().observe(this, cache -> {
+            if (cache != null) {
+                bookInfoCache.clear();
+                bookInfoCache.putAll(cache);
+                adapter.notifyDataSetChanged();
             }
+        });
 
-            FirebaseUtils.getFirestore().collection("books").document(review.getBookId())
-                    .get()
-                    .addOnSuccessListener(doc -> {
-                        Book book = doc.toObject(Book.class);
-                        if (book != null) {
-                            bookInfoCache.put(review.getBookId(),
-                                    new String[]{book.getTitle(), book.getCoverImageUrl()});
-                        }
-                        remaining[0]--;
-                        if (remaining[0] <= 0) adapter.notifyDataSetChanged();
-                    })
-                    .addOnFailureListener(e -> {
-                        remaining[0]--;
-                        if (remaining[0] <= 0) adapter.notifyDataSetChanged();
-                    });
-        }
+        viewModel.getDeleteSuccessPosition().observe(this, position -> {
+            if (position != null) {
+                adapter.notifyItemRemoved(position);
+                updateEmptyState();
+            }
+        });
+
+        String uid = FirebaseUtils.getCurrentUserId();
+        if (uid != null) viewModel.loadReviews(uid);
     }
 
     private void updateEmptyState() {
@@ -122,16 +93,7 @@ public class MyReviewsActivity extends AppCompatActivity {
                 .setTitle("Xóa đánh giá")
                 .setMessage("Bạn có chắc muốn xóa đánh giá này?")
                 .setPositiveButton("Xóa", (dialog, which) ->
-                        FirebaseUtils.getFirestore().collection("reviews")
-                                .document(review.getReviewId())
-                                .delete()
-                                .addOnSuccessListener(unused -> {
-                                    reviewList.remove(position);
-                                    adapter.notifyItemRemoved(position);
-                                    updateEmptyState();
-                                    // TODO: cập nhật lại rating/ratingCount trung bình của book
-                                    // sau khi xóa review - nên xử lý bằng Cloud Function.
-                                }))
+                        viewModel.deleteReview(review, position))
                 .setNegativeButton("Hủy", null)
                 .show();
     }

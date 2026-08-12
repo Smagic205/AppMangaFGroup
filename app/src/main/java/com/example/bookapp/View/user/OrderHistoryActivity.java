@@ -8,6 +8,7 @@ import android.widget.LinearLayout;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -17,6 +18,7 @@ import com.example.bookapp.Model.Order;
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.Constants;
 import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.OrderHistoryViewModel;
 import com.google.android.material.tabs.TabLayout;
 
 import java.util.ArrayList;
@@ -43,6 +45,8 @@ public class OrderHistoryActivity extends AppCompatActivity {
     private OrderAdapter adapter;
     private final List<Order> orderList = new ArrayList<>();
 
+    private OrderHistoryViewModel viewModel;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,11 +59,31 @@ public class OrderHistoryActivity extends AppCompatActivity {
         setupRecyclerView();
         setupTabs();
 
+        viewModel = new ViewModelProvider(this).get(OrderHistoryViewModel.class);
+
+        viewModel.getOrders().observe(this, orders -> {
+            srlOrders.setRefreshing(false);
+            orderList.clear();
+            if (orders != null) orderList.addAll(orders);
+            adapter.notifyDataSetChanged();
+
+            boolean isEmpty = orderList.isEmpty();
+            llEmptyOrders.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+            rvOrders.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+        });
+
+        viewModel.getIsLoading().observe(this, isLoading -> {
+            if (Boolean.TRUE.equals(isLoading)) srlOrders.setRefreshing(true);
+        });
+
+        String uid = FirebaseUtils.getCurrentUserId();
         String initialStatus = getIntent().getStringExtra(EXTRA_INITIAL_STATUS);
         selectTabForStatus(initialStatus);
-        loadOrders(initialStatus);
+        if (uid != null) viewModel.loadOrders(uid, initialStatus);
 
-        srlOrders.setOnRefreshListener(() -> loadOrders(currentSelectedStatus()));
+        srlOrders.setOnRefreshListener(() -> {
+            if (uid != null) viewModel.loadOrders(uid, currentSelectedStatus());
+        });
     }
 
     private void bindViews() {
@@ -89,16 +113,15 @@ public class OrderHistoryActivity extends AppCompatActivity {
         tabOrderStatus.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
-                loadOrders(TAB_STATUSES[tab.getPosition()]);
+                String uid = FirebaseUtils.getCurrentUserId();
+                if (uid != null) viewModel.loadOrders(uid, TAB_STATUSES[tab.getPosition()]);
             }
 
             @Override
-            public void onTabUnselected(TabLayout.Tab tab) {
-            }
+            public void onTabUnselected(TabLayout.Tab tab) {}
 
             @Override
-            public void onTabReselected(TabLayout.Tab tab) {
-            }
+            public void onTabReselected(TabLayout.Tab tab) {}
         });
     }
 
@@ -116,41 +139,5 @@ public class OrderHistoryActivity extends AppCompatActivity {
     @Nullable
     private String currentSelectedStatus() {
         return TAB_STATUSES[tabOrderStatus.getSelectedTabPosition()];
-    }
-
-    private void loadOrders(@Nullable String statusFilter) {
-        String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
-
-        srlOrders.setRefreshing(true);
-
-        com.google.firebase.firestore.Query query = FirebaseUtils.getFirestore()
-                .collection(Constants.COLLECTION_ORDERS)
-                .whereEqualTo("userId", uid)
-                .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING);
-
-        if (statusFilter != null) {
-            // Lưu ý: kết hợp whereEqualTo + orderBy khác field thường cần composite index -
-            // Firestore sẽ in link tạo index sẵn trong Logcat nếu thiếu, bấm vào là xong.
-            query = query.whereEqualTo("orderStatus", statusFilter);
-        }
-
-        query.get()
-                .addOnSuccessListener(querySnapshot -> {
-                    srlOrders.setRefreshing(false);
-
-                    orderList.clear();
-                    querySnapshot.forEach(doc -> {
-                        Order order = doc.toObject(Order.class);
-                        order.setOrderId(doc.getId());
-                        orderList.add(order);
-                    });
-                    adapter.notifyDataSetChanged();
-
-                    boolean isEmpty = orderList.isEmpty();
-                    llEmptyOrders.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
-                    rvOrders.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
-                })
-                .addOnFailureListener(e -> srlOrders.setRefreshing(false));
     }
 }

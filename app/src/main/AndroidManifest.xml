@@ -12,17 +12,99 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BookApp">
 
+        <!-- AdMob App ID (Test ID) -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713"/>
 
+        <!-- ===== LAUNCHER: LoginActivity ===== -->
         <activity
-            android:name=".MainActivity"
+            android:name=".View.user.LoginActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Auth -->
+        <activity
+            android:name=".View.user.RegisterActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".View.user.ForgotPasswordActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- Home container (chứa HomeFragment + CartFragment + ProfileFragment) -->
+        <activity
+            android:name=".View.user.HomeActivity"
+            android:exported="false" />
+
+        <!-- Search & Browse -->
+        <activity
+            android:name=".View.user.SearchActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustPan" />
+
+        <!-- Book Detail -->
+        <activity
+            android:name=".View.user.BookDetailActivity"
+            android:exported="false" />
+
+        <!-- Checkout flow -->
+        <activity
+            android:name=".View.user.CheckoutActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".View.user.AddressListActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".View.user.AddEditAddressActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".View.user.SelectVoucherActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- Order -->
+        <activity
+            android:name=".View.user.OrderHistoryActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".View.user.OrderDetailActivity"
+            android:exported="false" />
+
+        <!-- Reviews -->
+        <activity
+            android:name=".View.user.WriteReviewActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".View.user.MyReviewsActivity"
+            android:exported="false" />
+
+        <!-- Notifications -->
+        <activity
+            android:name=".View.user.NotificationActivity"
+            android:exported="false" />
+
+        <!-- Profile & Settings -->
+        <activity
+            android:name=".View.user.EditProfileActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
     </application>
 
 </manifest>

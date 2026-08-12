@@ -13,6 +13,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -20,10 +21,9 @@ import com.example.bookapp.Adapter.user.BookAdapter;
 import com.example.bookapp.Adapter.user.CategoryAdapter;
 import com.example.bookapp.Model.Book;
 import com.example.bookapp.Model.Category;
-import com.example.bookapp.Model.User;
 import com.example.bookapp.R;
-import com.example.bookapp.Utils.Constants;
 import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.HomeViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +40,8 @@ public class HomeFragment extends Fragment {
     private final List<Book> featuredBookList = new ArrayList<>();
     private final List<Book> allBookList = new ArrayList<>();
 
+    private HomeViewModel viewModel;
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -53,10 +55,40 @@ public class HomeFragment extends Fragment {
         bindViews(view);
         setupRecyclerViews();
         setupClicks();
-        loadGreeting();
-        loadCategories();
-        loadFeaturedBooks();
-        loadAllBooks();
+
+        viewModel = new ViewModelProvider(this).get(HomeViewModel.class);
+
+        // Observe 4 LiveData, Fragment không gọi Firestore trực tiếp
+        viewModel.getCurrentUser().observe(getViewLifecycleOwner(), user -> {
+            if (user != null) tvUserName.setText(user.getFullName());
+        });
+
+        viewModel.getCategories().observe(getViewLifecycleOwner(), categories -> {
+            categoryList.clear();
+            if (categories != null) categoryList.addAll(categories);
+            rvCategories.getAdapter().notifyDataSetChanged();
+        });
+
+        viewModel.getFeaturedBooks().observe(getViewLifecycleOwner(), books -> {
+            featuredBookList.clear();
+            if (books != null) featuredBookList.addAll(books);
+            rvFeaturedBooks.getAdapter().notifyDataSetChanged();
+        });
+
+        viewModel.getAllBooks().observe(getViewLifecycleOwner(), books -> {
+            pbLoading.setVisibility(View.GONE);
+            allBookList.clear();
+            if (books != null) allBookList.addAll(books);
+            rvAllBooks.getAdapter().notifyDataSetChanged();
+
+            boolean isEmpty = allBookList.isEmpty();
+            llEmptyState.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+            rvAllBooks.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+        });
+
+        pbLoading.setVisibility(View.VISIBLE);
+        String uid = FirebaseUtils.getCurrentUserId();
+        if (uid != null) viewModel.load(uid);
     }
 
     private void bindViews(View view) {
@@ -90,8 +122,6 @@ public class HomeFragment extends Fragment {
     private void setupClicks() {
         llSearchBar.setOnClickListener(v -> startActivity(new Intent(getContext(), SearchActivity.class)));
         ibNotification.setOnClickListener(v -> startActivity(new Intent(getContext(), NotificationActivity.class)));
-        // tv_see_all_category / tv_see_all_featured: điều hướng sang màn danh sách đầy đủ
-        // riêng (chưa có trong phạm vi hiện tại) - tạm mở SearchActivity làm nơi duyệt chung.
         tvSeeAllCategory.setOnClickListener(v -> startActivity(new Intent(getContext(), SearchActivity.class)));
         tvSeeAllFeatured.setOnClickListener(v -> startActivity(new Intent(getContext(), SearchActivity.class)));
     }
@@ -106,80 +136,5 @@ public class HomeFragment extends Fragment {
         Intent intent = new Intent(getContext(), SearchActivity.class);
         intent.putExtra(SearchActivity.EXTRA_CATEGORY_ID, category.getCategoryId());
         startActivity(intent);
-    }
-
-    private void loadGreeting() {
-        String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
-
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_USERS).document(uid)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    User user = doc.toObject(User.class);
-                    if (user != null && isAdded()) {
-                        tvUserName.setText(user.getFullName());
-                    }
-                });
-    }
-
-    private void loadCategories() {
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_CATEGORIES)
-                .whereEqualTo("isActive", true)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    if (!isAdded()) return;
-                    categoryList.clear();
-                    querySnapshot.forEach(doc -> {
-                        Category category = doc.toObject(Category.class);
-                        category.setCategoryId(doc.getId());
-                        categoryList.add(category);
-                    });
-                    rvCategories.getAdapter().notifyDataSetChanged();
-                });
-    }
-
-    private void loadFeaturedBooks() {
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
-                .whereEqualTo("isFeatured", true)
-                .limit(10)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    if (!isAdded()) return;
-                    featuredBookList.clear();
-                    querySnapshot.forEach(doc -> {
-                        Book book = doc.toObject(Book.class);
-                        book.setBookId(doc.getId());
-                        featuredBookList.add(book);
-                    });
-                    rvFeaturedBooks.getAdapter().notifyDataSetChanged();
-                });
-    }
-
-    private void loadAllBooks() {
-        pbLoading.setVisibility(View.VISIBLE);
-
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
-                .whereEqualTo("isActive", true)
-                .limit(30)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    if (!isAdded()) return;
-                    pbLoading.setVisibility(View.GONE);
-
-                    allBookList.clear();
-                    querySnapshot.forEach(doc -> {
-                        Book book = doc.toObject(Book.class);
-                        book.setBookId(doc.getId());
-                        allBookList.add(book);
-                    });
-                    rvAllBooks.getAdapter().notifyDataSetChanged();
-
-                    boolean isEmpty = allBookList.isEmpty();
-                    llEmptyState.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
-                    rvAllBooks.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
-                })
-                .addOnFailureListener(e -> {
-                    if (isAdded()) pbLoading.setVisibility(View.GONE);
-                });
     }
 }

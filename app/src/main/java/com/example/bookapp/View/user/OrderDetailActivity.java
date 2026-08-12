@@ -10,12 +10,13 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.bookapp.Adapter.user.OrderItemAdapter;
 import com.example.bookapp.Model.Order;
 import com.example.bookapp.R;
-import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.OrderDetailViewModel;
 
 import java.text.NumberFormat;
 import java.util.Locale;
@@ -30,7 +31,8 @@ public class OrderDetailActivity extends AppCompatActivity {
     private Button btnCancelOrder, btnReviewOrder;
 
     private String orderId;
-    private Order currentOrder;
+
+    private OrderDetailViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -43,10 +45,22 @@ public class OrderDetailActivity extends AppCompatActivity {
         toolbar.setNavigationOnClickListener(v -> finish());
 
         bindViews();
-        loadOrderDetail();
+
+        viewModel = new ViewModelProvider(this).get(OrderDetailViewModel.class);
+
+        viewModel.getOrder().observe(this, order -> {
+            if (order != null) bindOrderData(order);
+        });
+
+        viewModel.getCancelSuccess().observe(this, success -> {
+            // loadOrder đã được gọi lại bên trong ViewModel sau khi hủy thành công
+        });
+
+        if (orderId != null) viewModel.loadOrder(orderId);
 
         btnCancelOrder.setOnClickListener(v -> confirmCancelOrder());
         btnReviewOrder.setOnClickListener(v -> {
+            Order currentOrder = viewModel.getOrder().getValue();
             // Mở màn viết đánh giá cho từng sách trong đơn (đơn giản hoá: mở sách đầu tiên)
             if (currentOrder != null && !currentOrder.getItems().isEmpty()) {
                 Intent intent = new Intent(this, WriteReviewActivity.class);
@@ -72,21 +86,6 @@ public class OrderDetailActivity extends AppCompatActivity {
         btnReviewOrder = findViewById(R.id.btn_review_order);
 
         rvOrderItems.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
-    }
-
-    private void loadOrderDetail() {
-        if (orderId == null) return;
-
-        FirebaseUtils.getFirestore().collection("orders").document(orderId)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    Order order = doc.toObject(Order.class);
-                    if (order == null) return;
-
-                    order.setOrderId(doc.getId());
-                    currentOrder = order;
-                    bindOrderData(order);
-                });
     }
 
     private void bindOrderData(Order order) {
@@ -135,10 +134,7 @@ public class OrderDetailActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Hủy đơn hàng")
                 .setMessage("Bạn có chắc muốn hủy đơn hàng này?")
-                .setPositiveButton("Hủy đơn", (dialog, which) ->
-                        FirebaseUtils.getFirestore().collection("orders").document(orderId)
-                                .update("orderStatus", "cancelled")
-                                .addOnSuccessListener(unused -> loadOrderDetail()))
+                .setPositiveButton("Hủy đơn", (dialog, which) -> viewModel.cancelOrder(orderId))
                 .setNegativeButton("Không", null)
                 .show();
     }

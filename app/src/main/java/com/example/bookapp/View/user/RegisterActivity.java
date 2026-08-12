@@ -12,20 +12,19 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
-import com.example.bookapp.Model.User;
 import com.example.bookapp.R;
-import com.example.bookapp.Utils.Constants;
-import com.example.bookapp.Utils.FirebaseUtils;
-import com.example.bookapp.View.user.HomeActivity;
+import com.example.bookapp.ViewModel.RegisterViewModel;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.firebase.auth.FirebaseUser;
 
 public class RegisterActivity extends AppCompatActivity {
 
     private TextInputEditText etFullName, etEmail, etPhone, etPassword, etConfirmPassword;
     private Button btnRegister;
     private ProgressBar pbRegister;
+
+    private RegisterViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -44,6 +43,27 @@ public class RegisterActivity extends AppCompatActivity {
 
         TextView tvLogin = findViewById(R.id.tv_login);
         tvLogin.setOnClickListener(v -> finish()); // quay lại LoginActivity đã mở trước đó
+
+        viewModel = new ViewModelProvider(this).get(RegisterViewModel.class);
+
+        viewModel.getRegisterSuccess().observe(this, success -> {
+            if (Boolean.TRUE.equals(success)) {
+                setLoading(false);
+                Toast.makeText(this, "Đăng ký thành công!", Toast.LENGTH_SHORT).show();
+                // Điều hướng thẳng vào HomeActivity vì role chắc chắn là "user"
+                Intent intent = new Intent(this, HomeActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            }
+        });
+
+        viewModel.getErrorMessage().observe(this, error -> {
+            if (error != null) {
+                setLoading(false);
+                Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+            }
+        });
 
         btnRegister.setOnClickListener(v -> doRegister());
     }
@@ -77,48 +97,7 @@ public class RegisterActivity extends AppCompatActivity {
         }
 
         setLoading(true);
-
-        FirebaseUtils.getAuth().createUserWithEmailAndPassword(email, password)
-                .addOnSuccessListener(authResult -> {
-                    FirebaseUser firebaseUser = authResult.getUser();
-                    if (firebaseUser == null) {
-                        setLoading(false);
-                        return;
-                    }
-
-                    // role mặc định luôn là "user" khi tự đăng ký
-                    User newUser = new User(
-                            firebaseUser.getUid(),
-                            fullName,
-                            email,
-                            phone,
-                            "",                       // avatarUrl để trống, có thể set placeholder
-                            Constants.ROLE_USER,
-                            "male",                    // giá trị mặc định, user có thể sửa sau ở EditProfileActivity
-                            null
-                    );
-
-                    FirebaseUtils.getFirestore().collection(Constants.COLLECTION_USERS)
-                            .document(firebaseUser.getUid())
-                            .set(newUser)
-                            .addOnSuccessListener(unused -> {
-                                setLoading(false);
-                                Toast.makeText(this, "Đăng ký thành công!", Toast.LENGTH_SHORT).show();
-                                // Điều hướng thẳng vào HomeActivity vì role chắc chắn là "user"
-                                Intent intent = new Intent(this, HomeActivity.class);
-                                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                                startActivity(intent);
-                                finish();
-                            })
-                            .addOnFailureListener(e -> {
-                                setLoading(false);
-                                Toast.makeText(this, "Lỗi lưu thông tin: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                            });
-                })
-                .addOnFailureListener(e -> {
-                    setLoading(false);
-                    Toast.makeText(this, "Đăng ký thất bại: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+        viewModel.register(fullName, email, phone, password);
     }
 
     private void setLoading(boolean loading) {

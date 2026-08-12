@@ -12,12 +12,14 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.bookapp.Adapter.user.AddressAdapter;
 import com.example.bookapp.Model.Address;
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.AddressListViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +43,8 @@ public class AddressListActivity extends AppCompatActivity {
     private AddressAdapter adapter;
     private final List<Address> addressList = new ArrayList<>();
     private boolean selectMode;
+
+    private AddressListViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -87,35 +91,25 @@ public class AddressListActivity extends AppCompatActivity {
                 startActivity(new Intent(this, AddEditAddressActivity.class)));
 
         btnUseAddress.setOnClickListener(v -> confirmSelection());
+
+        viewModel = new ViewModelProvider(this).get(AddressListViewModel.class);
+
+        viewModel.getAddresses().observe(this, addresses -> {
+            addressList.clear();
+            if (addresses != null) addressList.addAll(addresses);
+            adapter.notifyDataSetChanged();
+
+            boolean isEmpty = addressList.isEmpty();
+            llEmpty.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+            rvAddresses.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+        });
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        loadAddresses();
-    }
-
-    private void loadAddresses() {
         String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
-
-        FirebaseUtils.getFirestore()
-                .collection("users").document(uid)
-                .collection("addresses")
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    addressList.clear();
-                    querySnapshot.forEach(doc -> {
-                        Address address = doc.toObject(Address.class);
-                        address.setAddressId(doc.getId());
-                        addressList.add(address);
-                    });
-                    adapter.notifyDataSetChanged();
-
-                    boolean isEmpty = addressList.isEmpty();
-                    llEmpty.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
-                    rvAddresses.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
-                });
+        if (uid != null) viewModel.loadAddresses(uid);
     }
 
     private void confirmSelection() {
@@ -142,13 +136,7 @@ public class AddressListActivity extends AppCompatActivity {
                 .setMessage("Bạn có chắc muốn xóa địa chỉ này?")
                 .setPositiveButton("Xóa", (dialog, which) -> {
                     String uid = FirebaseUtils.getCurrentUserId();
-                    if (uid == null) return;
-
-                    FirebaseUtils.getFirestore()
-                            .collection("users").document(uid)
-                            .collection("addresses").document(address.getAddressId())
-                            .delete()
-                            .addOnSuccessListener(unused -> loadAddresses());
+                    if (uid != null) viewModel.deleteAddress(uid, address.getAddressId());
                 })
                 .setNegativeButton("Hủy", null)
                 .show();

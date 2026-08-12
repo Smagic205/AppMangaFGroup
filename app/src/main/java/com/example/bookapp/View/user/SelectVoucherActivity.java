@@ -11,13 +11,13 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.bookapp.Adapter.user.VoucherAdapter;
 import com.example.bookapp.Model.Voucher;
 import com.example.bookapp.R;
-import com.example.bookapp.Utils.FirebaseUtils;
-import com.google.firebase.Timestamp;
+import com.example.bookapp.ViewModel.SelectVoucherViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +37,8 @@ public class SelectVoucherActivity extends AppCompatActivity {
 
     private VoucherAdapter adapter;
     private final List<Voucher> voucherList = new ArrayList<>();
+
+    private SelectVoucherViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -58,47 +60,43 @@ public class SelectVoucherActivity extends AppCompatActivity {
         });
         rvVouchers.setAdapter(adapter);
 
-        loadAvailableVouchers();
+        viewModel = new ViewModelProvider(this).get(SelectVoucherViewModel.class);
+
+        viewModel.getVouchers().observe(this, vouchers -> {
+            voucherList.clear();
+            if (vouchers != null) voucherList.addAll(vouchers);
+            adapter.notifyDataSetChanged();
+        });
+
+        viewModel.getValidatedVoucher().observe(this, voucher -> {
+            if (voucher != null) {
+                Toast.makeText(this, "Áp dụng mã " + voucher.getCode() + " thành công",
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                // null được emit khi validate trả về không hợp lệ
+                // Chỉ hiển thị lỗi nếu đã chủ động validate (tránh toast khi mới mở màn)
+            }
+        });
+
+        viewModel.loadAvailableVouchers();
 
         tvApplyCode.setOnClickListener(v -> applyManualCode());
         btnConfirm.setOnClickListener(v -> confirmSelection());
-    }
-
-    private void loadAvailableVouchers() {
-        Timestamp now = Timestamp.now();
-
-        FirebaseUtils.getFirestore().collection("vouchers")
-                .whereEqualTo("isActive", true)
-                .whereGreaterThanOrEqualTo("endDate", now)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    voucherList.clear();
-                    querySnapshot.forEach(doc -> {
-                        Voucher voucher = doc.toObject(Voucher.class);
-                        voucher.setVoucherId(doc.getId());
-                        voucherList.add(voucher);
-                    });
-                    adapter.notifyDataSetChanged();
-                })
-                .addOnFailureListener(e ->
-                        Toast.makeText(this, "Không tải được danh sách voucher", Toast.LENGTH_SHORT).show());
     }
 
     private void applyManualCode() {
         String code = etVoucherCode.getText().toString().trim().toUpperCase();
         if (TextUtils.isEmpty(code)) return;
 
-        FirebaseUtils.getFirestore().collection("vouchers")
-                .whereEqualTo("code", code)
-                .whereEqualTo("isActive", true)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    if (querySnapshot.isEmpty()) {
-                        Toast.makeText(this, "Mã voucher không hợp lệ hoặc đã hết hạn", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(this, "Áp dụng mã " + code + " thành công", Toast.LENGTH_SHORT).show();
-                    }
-                });
+        viewModel.validateCode(code);
+        // Kết quả sẽ được observe ở trên: null = không hợp lệ, non-null = hợp lệ
+        // Hiển thị thông báo lỗi ngay tại đây để UX tốt hơn
+        viewModel.getValidatedVoucher().observe(this, voucher -> {
+            if (voucher == null) {
+                Toast.makeText(this, "Mã voucher không hợp lệ hoặc đã hết hạn",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void confirmSelection() {

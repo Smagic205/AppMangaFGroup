@@ -14,12 +14,13 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
-import com.example.bookapp.Model.User;
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.Constants;
 import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.ViewModel.ProfileViewModel;
 
 public class ProfileFragment extends Fragment {
 
@@ -30,6 +31,8 @@ public class ProfileFragment extends Fragment {
             llMenuReviews, llMenuSettings,
             llStatusPending, llStatusShipping, llStatusDelivered, llStatusCancelled;
     private Button btnLogout;
+
+    private ProfileViewModel viewModel;
 
     @Nullable
     @Override
@@ -43,12 +46,27 @@ public class ProfileFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         bindViews(view);
         setupClicks();
+
+        viewModel = new ViewModelProvider(this).get(ProfileViewModel.class);
+
+        viewModel.getUser().observe(getViewLifecycleOwner(), user -> {
+            if (user == null) return;
+            tvName.setText(user.getFullName());
+            tvEmail.setText(user.getEmail());
+
+            if (user.getAvatarUrl() != null && !user.getAvatarUrl().isEmpty()) {
+                Glide.with(this).load(user.getAvatarUrl()).circleCrop().into(ivAvatar);
+            }
+        });
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        loadUserInfo();
+        String uid = FirebaseUtils.getCurrentUserId();
+        if (uid != null && viewModel != null) {
+            viewModel.loadUser(uid);
+        }
     }
 
     private void bindViews(View view) {
@@ -105,25 +123,5 @@ public class ProfileFragment extends Fragment {
             intent.putExtra(OrderHistoryActivity.EXTRA_INITIAL_STATUS, statusFilter);
         }
         startActivity(intent);
-    }
-
-    private void loadUserInfo() {
-        String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
-
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_USERS).document(uid)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    if (!isAdded()) return;
-                    User user = doc.toObject(User.class);
-                    if (user == null) return;
-
-                    tvName.setText(user.getFullName());
-                    tvEmail.setText(user.getEmail());
-
-                    if (user.getAvatarUrl() != null && !user.getAvatarUrl().isEmpty()) {
-                        Glide.with(this).load(user.getAvatarUrl()).circleCrop().into(ivAvatar);
-                    }
-                });
     }
 }
