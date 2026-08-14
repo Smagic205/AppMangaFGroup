@@ -15,6 +15,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.bookapp.R;
+
+
+import com.example.bookapp.Utils.DataSeeder;
+import com.example.bookapp.Utils.FirebaseCallback;
+
+
 import com.example.bookapp.Utils.FirebaseUtils;
 import com.example.bookapp.ViewModel.LoginViewModel;
 import com.google.android.material.textfield.TextInputEditText;
@@ -30,6 +36,22 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+//        DataSeeder.seedSampleData(new FirebaseCallback<Void>() {
+//            @Override
+//            public void onSuccess(Void result) {
+//                android.util.Log.d("DataSeeder", "Đã tạo dữ liệu mẫu thành công!");
+//                Toast.makeText(getApplicationContext(), "Đã tạo dữ liệu mẫu!", Toast.LENGTH_SHORT).show();
+//            }
+//
+//            @Override
+//            public void onFailure(Exception e) {
+//                android.util.Log.e("DataSeeder", "Lỗi tạo dữ liệu: ", e);
+//                Toast.makeText(getApplicationContext(), "Lỗi: " + e.getMessage(), Toast.LENGTH_LONG).show();
+//            }
+//        });
+
+
         setContentView(R.layout.activity_login);
 
         etEmail = findViewById(R.id.et_email);
