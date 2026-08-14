@@ -35,4 +35,33 @@ public class FirebaseUtils {
     public static boolean isLoggedIn() {
         return getAuth().getCurrentUser() != null;
     }
+
+
+
+    // --- Thêm 2 dòng field này ngay dưới "private static FirebaseFirestore firestoreInstance;" ---
+// private static com.google.firebase.storage.FirebaseStorage storageInstance;
+
+    /**
+     * Cần cho ImageUtils.java (file riêng của Admin) để upload ảnh bìa sách/avatar lên
+     * Firebase Storage. User hiện chưa cần Storage nên bản gốc chưa có — bổ sung thêm ở đây.
+     */
+    public static com.google.firebase.storage.FirebaseStorage getStorage() {
+        return com.google.firebase.storage.FirebaseStorage.getInstance();
+    }
+
+    public static com.google.firebase.storage.StorageReference getStorageRef() {
+        return getStorage().getReference();
+    }
+
+    /** Trả về FirebaseUser đầy đủ (khác getCurrentUserId() chỉ trả UID) — dự phòng cho sau này. */
+    @Nullable
+    public static FirebaseUser getCurrentUser() {
+        return getAuth().getCurrentUser();
+    }
+
+    /** Dùng cho nút "Đăng xuất" (fl_logout) trên AdminDashboardActivity. */
+    public static void signOut() {
+        getAuth().signOut();
+    }
+
 }
