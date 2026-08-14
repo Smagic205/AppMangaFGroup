@@ -40,4 +40,42 @@ public class RoleChecker {
                 })
                 .addOnFailureListener(e -> activity.finish());
     }
+
+
+    /** Interface MỚI — dùng riêng cho 2 hàm bổ sung bên dưới, không ảnh hưởng OnPermissionResult cũ. */
+    public interface OnRoleResult {
+        void onResult(boolean isAdmin);
+    }
+
+    /**
+     * Kiểm tra NHANH quyền admin dựa vào SharedPreferences cục bộ (SessionManager — file riêng
+     * của Admin), không cần chờ mạng. Dùng để quyết định điều hướng ngay khi mở app, KHÔNG
+     * dùng để cấp quyền ghi dữ liệu (dữ liệu cục bộ có thể bị chỉnh sửa trên máy đã root).
+     */
+    public static boolean isAdminLocal(Activity activity) {
+        return new SessionManager(activity).isAdmin();
+    }
+
+    /**
+     * Kiểm tra quyền admin CHẮC CHẮN từ Firestore nhưng KHÔNG tự Toast/finish Activity —
+     * chỉ trả về true/false qua callback. Dùng khi chỉ cần biết kết quả để hiện/ẩn 1 phần UI
+     * (vd switch "Cấp quyền admin" trong màn chi tiết user), không phải để chặn cả màn hình.
+     * Nếu cần chặn cả màn hình như trước giờ, tiếp tục dùng checkAdminPermission() đã có.
+     */
+    public static void checkRoleSilently(Activity activity, OnRoleResult callback) {
+        String uid = FirebaseUtils.getCurrentUserId();
+        if (uid == null) {
+            callback.onResult(false);
+            return;
+        }
+        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_USERS)
+                .document(uid)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    User user = doc.toObject(User.class);
+                    callback.onResult(user != null && user.isAdmin());
+                })
+                .addOnFailureListener(e -> callback.onResult(false));
+    }
+
 }

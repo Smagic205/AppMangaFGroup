@@ -56,16 +56,18 @@ dependencies {
     implementation("androidx.viewpager2:viewpager2:1.0.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("com.github.bumptech.glide:glide:4.16.0")
-    implementation ("com.google.firebase:firebase-auth")
-    // Load ảnh (avatar, ảnh bìa sách) - dùng trong EditProfile, OrderDetail, WriteReview...
-    implementation("com.github.bumptech.glide:glide:4.16.0")
-
-    // Upload/tải ảnh lên Firebase Storage - dùng trong EditProfileActivity
+    implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-storage")
-
-    // SwipeRefreshLayout - dùng trong NotificationActivity
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
-
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.8.7")
     implementation("androidx.lifecycle:lifecycle-livedata:2.8.7")
+    implementation("de.hdodenhof:circleimageview:3.1.0")
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+// Firebase BOM để quản lý version đồng bộ
+    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
+    implementation("com.google.firebase:firebase-firestore")
+
+// Glide compiler cho annotation
+    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
+
 }

@@ -1,0 +1,128 @@
+package com.example.bookapp.Repository;
+
+import androidx.annotation.Nullable;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+
+import com.example.bookapp.Model.Order;
+import com.example.bookapp.Utils.Constants;
+import com.example.bookapp.Utils.FirebaseCallback;
+import com.example.bookapp.Utils.FirebaseUtils;
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.Query;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+
+public class AdminOrderRepository {
+
+    private final CollectionReference ordersRef =
+            FirebaseUtils.getFirestore().collection(Constants.COLLECTION_ORDERS);
+
+    /** Realtime toàn bộ đơn hàng, mới nhất trước — dùng cho ManageOrderActivity. */
+    public LiveData<List<Order>> observeAllOrders() {
+        Query query = ordersRef.orderBy(Constants.FIELD_CREATED_AT, Query.Direction.DESCENDING);
+        return new FirestoreListLiveData<>(query, Order.class);
+    }
+
+    /** N đơn hàng gần nhất, lấy 1 lần — dùng cho khối "Đơn hàng gần đây" trên AdminDashboardActivity. */
+    public LiveData<List<Order>> getRecentOrders(int limit) {
+        MutableLiveData<List<Order>> result = new MutableLiveData<>();
+        ordersRef.orderBy(Constants.FIELD_CREATED_AT, Query.Direction.DESCENDING)
+                .limit(limit)
+                .get()
+                .addOnSuccessListener(snapshots -> result.setValue(snapshots.toObjects(Order.class)));
+        return result;
+    }
+
+    /** 1 đơn hàng cụ thể, lấy 1 lần — dùng cho AdminOrderDetailActivity. */
+    public LiveData<Order> getOrderById(String orderId) {
+        MutableLiveData<Order> result = new MutableLiveData<>();
+        ordersRef.document(orderId).get()
+                .addOnSuccessListener(doc -> result.setValue(doc.toObject(Order.class)));
+        return result;
+    }
+
+    /** Lịch sử mua hàng của 1 user cụ thể, lấy 1 lần — dùng cho màn chi tiết user phía admin. */
+    public LiveData<List<Order>> getOrdersByUserId(String userId) {
+        MutableLiveData<List<Order>> result = new MutableLiveData<>();
+        ordersRef.whereEqualTo(Constants.FIELD_USER_ID, userId)
+                .orderBy(Constants.FIELD_CREATED_AT, Query.Direction.DESCENDING)
+                .get()
+                .addOnSuccessListener(snapshots -> result.setValue(snapshots.toObjects(Order.class)));
+        return result;
+    }
+
+    /**
+     * Đổi trạng thái đơn hàng — dùng ở AdminOrderDetailActivity mỗi lần admin bấm nút
+     * "Xác nhận đơn → Đang đóng gói" v.v. CHỈ cập nhật field orderStatus, KHÔNG tạo
+     * notification ở đây — ViewModel gọi tiếp AdminNotificationRepository sau khi callback
+     * này thành công, giữ mỗi Repository chỉ lo đúng 1 bảng.
+     */
+    public void updateOrderStatus(String orderId, String newStatus, FirebaseCallback<Void> callback) {
+        ordersRef.document(orderId).update(Constants.FIELD_ORDER_STATUS, newStatus)
+                .addOnSuccessListener(unused -> callback.onSuccess(null))
+                .addOnFailureListener(callback::onFailure);
+    }
+
+    /** Hủy đơn — tách riêng hàm cho rõ ý nghĩa nghiệp vụ dù dùng chung logic updateOrderStatus. */
+    public void cancelOrder(String orderId, FirebaseCallback<Void> callback) {
+        updateOrderStatus(orderId, Constants.ORDER_CANCELLED, callback);
+    }
+
+    /** Lọc theo trạng thái — dùng cho TabLayout (Tất cả/Chờ xử lý/Đóng gói/Đang giao/Đã giao/Đã hủy). */
+    public List<Order> filterByStatus(List<Order> source, @Nullable String status) {
+        if (status == null || status.isEmpty()) return source;
+        List<Order> result = new ArrayList<>();
+        for (Order o : source) {
+            if (status.equalsIgnoreCase(o.getOrderStatus())) result.add(o);
+        }
+        return result;
+    }
+
+    /** Tìm theo mã đơn hoặc tên người nhận (lấy từ shippingAddress snapshot trong đơn). */
+    public List<Order> filterByKeyword(List<Order> source, String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) return source;
+        List<Order> result = new ArrayList<>();
+        String lowerKeyword = keyword.toLowerCase(Locale.ROOT).trim();
+        for (Order o : source) {
+            boolean matchId = o.getOrderId() != null
+                    && o.getOrderId().toLowerCase(Locale.ROOT).contains(lowerKeyword);
+            boolean matchName = o.getShippingAddress() != null
+                    && o.getShippingAddress().getName() != null
+                    && o.getShippingAddress().getName().toLowerCase(Locale.ROOT).contains(lowerKeyword);
+            if (matchId || matchName) result.add(o);
+        }
+        return result;
+    }
+
+    /**
+     * Thống kê doanh thu trong khoảng thời gian, lấy 1 lần — Firestore không hỗ trợ SUM ở
+     * tầng server (trừ khi dùng Cloud Functions trả phí), nên cộng dồn ở client. Chỉ tính
+     * đơn có orderStatus = delivered.
+     */
+    public LiveData<Double> getRevenueInRange(Date fromDate, Date toDate) {
+        MutableLiveData<Double> result = new MutableLiveData<>();
+        ordersRef.whereEqualTo(Constants.FIELD_ORDER_STATUS, Constants.ORDER_DELIVERED)
+                .whereGreaterThanOrEqualTo(Constants.FIELD_CREATED_AT, fromDate)
+                .whereLessThanOrEqualTo(Constants.FIELD_CREATED_AT, toDate)
+                .get()
+                .addOnSuccessListener(snapshots -> {
+                    double total = 0;
+                    for (Order order : snapshots.toObjects(Order.class)) {
+                        total += order.getFinalTotal();
+                    }
+                    result.setValue(total);
+                });
+        return result;
+    }
+
+    /** Đếm tổng số đơn — dùng cho thẻ thống kê "Đơn hàng" trên Dashboard. */
+    public LiveData<Integer> countAllOrders() {
+        MutableLiveData<Integer> result = new MutableLiveData<>();
+        ordersRef.get().addOnSuccessListener(snapshots -> result.setValue(snapshots.size()));
+        return result;
+    }
+}
