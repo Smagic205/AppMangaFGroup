@@ -36,6 +36,9 @@ public class HomeFragment extends Fragment {
     private TextView tvGreeting, tvUserName, tvSearchHint, tvSeeAllCategory, tvSeeAllFeatured;
     private ImageButton ibNotification;
 
+    private androidx.viewpager2.widget.ViewPager2 vpBanner;
+    private com.google.android.material.tabs.TabLayout tabBannerIndicator;
+
     private final List<Category> categoryList = new ArrayList<>();
     private final List<Book> featuredBookList = new ArrayList<>();
     private final List<Book> allBookList = new ArrayList<>();
@@ -55,6 +58,7 @@ public class HomeFragment extends Fragment {
         bindViews(view);
         setupRecyclerViews();
         setupClicks();
+        setupBanner();
 
         viewModel = new ViewModelProvider(this).get(HomeViewModel.class);
 
@@ -92,6 +96,8 @@ public class HomeFragment extends Fragment {
     }
 
     private void bindViews(View view) {
+        vpBanner = view.findViewById(R.id.vp_banner);
+        tabBannerIndicator = view.findViewById(R.id.tab_banner_indicator);
         rvCategories = view.findViewById(R.id.rv_categories);
         rvFeaturedBooks = view.findViewById(R.id.rv_featured_books);
         rvAllBooks = view.findViewById(R.id.rv_all_books);
@@ -106,6 +112,22 @@ public class HomeFragment extends Fragment {
         ibNotification = view.findViewById(R.id.ib_notification);
     }
 
+    private void setupBanner() {
+        List<String> bannerUrls = new ArrayList<>();
+        // Mẫu ảnh banner (từ fahasa hoặc tự thiết kế)
+        bannerUrls.add("https://cdn0.fahasa.com/media/magentothem/banner7/TuanLeNhaNam_0824_Slide_840x320.jpg");
+        bannerUrls.add("https://cdn0.fahasa.com/media/magentothem/banner7/TrangCT_T9_840x320.jpg");
+        bannerUrls.add("https://cdn0.fahasa.com/media/magentothem/banner7/MCBooks_T9_840x320.jpg");
+
+        com.example.bookapp.Adapter.user.BannerAdapter adapter = new com.example.bookapp.Adapter.user.BannerAdapter(bannerUrls);
+        vpBanner.setAdapter(adapter);
+
+        new com.google.android.material.tabs.TabLayoutMediator(tabBannerIndicator, vpBanner,
+                (tab, position) -> {
+                    // Không set text, chỉ dùng để hiển thị dấu chấm
+                }).attach();
+    }
+
     private void setupRecyclerViews() {
         rvCategories.setLayoutManager(
                 new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
@@ -115,7 +137,7 @@ public class HomeFragment extends Fragment {
                 new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
         rvFeaturedBooks.setAdapter(new BookAdapter(featuredBookList, this::openBookDetail));
 
-        rvAllBooks.setLayoutManager(new LinearLayoutManager(getContext()));
+        rvAllBooks.setLayoutManager(new androidx.recyclerview.widget.GridLayoutManager(getContext(), 2));
         rvAllBooks.setAdapter(new BookAdapter(allBookList, this::openBookDetail));
     }
 
@@ -123,7 +145,11 @@ public class HomeFragment extends Fragment {
         llSearchBar.setOnClickListener(v -> startActivity(new Intent(getContext(), SearchActivity.class)));
         ibNotification.setOnClickListener(v -> startActivity(new Intent(getContext(), NotificationActivity.class)));
         tvSeeAllCategory.setOnClickListener(v -> startActivity(new Intent(getContext(), SearchActivity.class)));
-        tvSeeAllFeatured.setOnClickListener(v -> startActivity(new Intent(getContext(), SearchActivity.class)));
+        tvSeeAllFeatured.setOnClickListener(v -> {
+            Intent intent = new Intent(getContext(), SearchActivity.class);
+            intent.putExtra(SearchActivity.EXTRA_FEATURED, true);
+            startActivity(intent);
+        });
     }
 
     private void openBookDetail(Book book) {

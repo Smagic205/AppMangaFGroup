@@ -27,6 +27,9 @@ public class Book {
     private boolean isFeatured;
     private boolean isActive;
 
+    @com.google.firebase.firestore.Exclude
+    private String authorNameDisplay = "";
+
     public Book() {
     }
 
@@ -192,18 +195,22 @@ public class Book {
         this.tags = tags;
     }
 
+    @com.google.firebase.firestore.PropertyName("isFeatured")
     public boolean isFeatured() {
         return isFeatured;
     }
 
+    @com.google.firebase.firestore.PropertyName("isFeatured")
     public void setFeatured(boolean featured) {
         isFeatured = featured;
     }
 
+    @com.google.firebase.firestore.PropertyName("isActive")
     public boolean isActive() {
         return isActive;
     }
 
+    @com.google.firebase.firestore.PropertyName("isActive")
     public void setActive(boolean active) {
         isActive = active;
     }
@@ -213,5 +220,15 @@ public class Book {
      */
     public boolean isOnSale() {
         return salePrice > 0 && salePrice < price;
+    }
+
+    @com.google.firebase.firestore.Exclude
+    public String getAuthorNameDisplay() {
+        return authorNameDisplay;
+    }
+
+    @com.google.firebase.firestore.Exclude
+    public void setAuthorNameDisplay(String authorNameDisplay) {
+        this.authorNameDisplay = authorNameDisplay;
     }
 }

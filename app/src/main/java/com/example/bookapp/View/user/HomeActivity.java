@@ -27,6 +27,8 @@ public class HomeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
+        com.example.bookapp.Repository.FavoriteRepository.loadFavorites();
+
         BottomNavigationView bottomNav = findViewById(R.id.bottom_nav);
 
         if (savedInstanceState == null) {

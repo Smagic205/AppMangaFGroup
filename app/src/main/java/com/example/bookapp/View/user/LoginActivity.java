@@ -37,20 +37,23 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-//        DataSeeder.seedSampleData(new FirebaseCallback<Void>() {
-//            @Override
-//            public void onSuccess(Void result) {
-//                android.util.Log.d("DataSeeder", "Đã tạo dữ liệu mẫu thành công!");
-//                Toast.makeText(getApplicationContext(), "Đã tạo dữ liệu mẫu!", Toast.LENGTH_SHORT).show();
-//            }
+        // Seed data 1 lần duy nhất, dùng SharedPreferences để cờ đánh dấu
+//        android.content.SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
+//        boolean isSeeded = prefs.getBoolean("is_data_seeded", false);
+//        if (!isSeeded) {
+//            DataSeeder.seedFullCatalog(new FirebaseCallback<Void>() {
+//                @Override
+//                public void onSuccess(Void result) {
+//                    prefs.edit().putBoolean("is_data_seeded", true).apply();
+//                    Toast.makeText(getApplicationContext(), "Seed Data Success!", Toast.LENGTH_LONG).show();
+//                }
 //
-//            @Override
-//            public void onFailure(Exception e) {
-//                android.util.Log.e("DataSeeder", "Lỗi tạo dữ liệu: ", e);
-//                Toast.makeText(getApplicationContext(), "Lỗi: " + e.getMessage(), Toast.LENGTH_LONG).show();
-//            }
-//        });
-
+//                @Override
+//                public void onFailure(Exception e) {
+//                    Toast.makeText(getApplicationContext(), "Seed Data Failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+//                }
+//            });
+//        }
 
         setContentView(R.layout.activity_login);
 

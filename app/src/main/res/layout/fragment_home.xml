@@ -119,16 +119,17 @@
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/tab_banner_indicator"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="16dp"
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="8dp"
+                android:background="@android:color/transparent"
                 app:tabBackground="@drawable/tab_indicator_selector"
                 app:tabGravity="center"
                 app:tabIndicatorHeight="0dp"
-                app:tabMaxWidth="8dp"
-                app:tabMinWidth="8dp"
-                app:tabPaddingEnd="3dp"
-                app:tabPaddingStart="3dp" />
+                app:tabMaxWidth="12dp"
+                app:tabMinWidth="12dp"
+                app:tabPaddingEnd="2dp"
+                app:tabPaddingStart="2dp" />
 
             <!-- Category header -->
             <LinearLayout

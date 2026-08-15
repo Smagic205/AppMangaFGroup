@@ -63,4 +63,21 @@ public class AuthorRepository {
 
         return liveData;
     }
+
+    public LiveData<List<Author>> getAllAuthors() {
+        MutableLiveData<List<Author>> liveData = new MutableLiveData<>();
+        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_AUTHORS)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<Author> authors = new ArrayList<>();
+                    querySnapshot.forEach(doc -> {
+                        Author author = doc.toObject(Author.class);
+                        author.setAuthorId(doc.getId());
+                        authors.add(author);
+                    });
+                    liveData.setValue(authors);
+                })
+                .addOnFailureListener(e -> liveData.setValue(new ArrayList<>()));
+        return liveData;
+    }
 }

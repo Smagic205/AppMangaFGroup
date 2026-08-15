@@ -102,32 +102,34 @@ public class BookRepository {
             query = query.whereArrayContains("categoryIds", categoryId);
         }
 
-        if (!keyword.isEmpty()) {
-            query = query.orderBy("title").startAt(keyword).endAt(keyword + "\uf8ff");
-        } else {
-            switch (sortKey) {
-                case "price_asc":
-                    query = query.orderBy("price", Query.Direction.ASCENDING);
-                    break;
-                case "price_desc":
-                    query = query.orderBy("price", Query.Direction.DESCENDING);
-                    break;
-                case "rating":
-                    query = query.orderBy("rating", Query.Direction.DESCENDING);
-                    break;
-                case "bestseller":
-                    query = query.orderBy("soldCount", Query.Direction.DESCENDING);
-                    break;
-                default:
-                    query = query.orderBy("soldCount", Query.Direction.DESCENDING);
-            }
-        }
+        // Bỏ toàn bộ việc sắp xếp trên Firestore để tránh lỗi Composite Index
+        // Ta sẽ tự sort bằng Java dưới app sau khi lấy data về.
 
-        query.limit(40).get()
-                .addOnSuccessListener(qs -> liveData.setValue(toBookList(qs)))
+        query.limit(100).get()
+                .addOnSuccessListener(qs -> {
+                    List<Book> books = toBookList(qs);
+                    
+                    // Sort thủ công bằng Java
+                    switch (sortKey) {
+                        case "price_asc":
+                            java.util.Collections.sort(books, (b1, b2) -> Double.compare(b1.getPrice(), b2.getPrice()));
+                            break;
+                        case "price_desc":
+                            java.util.Collections.sort(books, (b1, b2) -> Double.compare(b2.getPrice(), b1.getPrice()));
+                            break;
+                        case "rating":
+                            java.util.Collections.sort(books, (b1, b2) -> Double.compare(b2.getRating(), b1.getRating()));
+                            break;
+                        case "bestseller":
+                        default:
+                            java.util.Collections.sort(books, (b1, b2) -> Integer.compare(b2.getSoldCount(), b1.getSoldCount()));
+                            break;
+                    }
+                    
+                    liveData.setValue(books);
+                })
                 .addOnFailureListener(e -> {
-                    // Lỗi thường gặp: thiếu composite index cho whereArrayContains + orderBy -
-                    // Firestore trả link tạo index sẵn trong Logcat, bấm link đó là xong.
+                    android.util.Log.e("BookRepository", "Lỗi searchBooks: ", e);
                     liveData.setValue(new ArrayList<>());
                 });
 

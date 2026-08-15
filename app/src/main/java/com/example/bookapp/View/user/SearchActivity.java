@@ -33,6 +33,7 @@ import java.util.List;
 public class SearchActivity extends AppCompatActivity {
 
     public static final String EXTRA_CATEGORY_ID = "extra_category_id";
+    public static final String EXTRA_FEATURED = "extra_featured";
 
     private EditText etSearch;
     private ImageButton ibBack, ibClearSearch;
@@ -50,6 +51,7 @@ public class SearchActivity extends AppCompatActivity {
     private final List<Book> resultBookList = new ArrayList<>();
 
     private String activeCategoryId = null;
+    private boolean isFeaturedOnly = false;
 
     private SearchViewModel viewModel;
 
@@ -59,6 +61,7 @@ public class SearchActivity extends AppCompatActivity {
         setContentView(R.layout.activity_search);
 
         activeCategoryId = getIntent().getStringExtra(EXTRA_CATEGORY_ID);
+        isFeaturedOnly = getIntent().getBooleanExtra(EXTRA_FEATURED, false);
 
         bindViews();
         setupRecyclerViews();
@@ -78,10 +81,15 @@ public class SearchActivity extends AppCompatActivity {
             rvSearchResults.getAdapter().notifyDataSetChanged();
             tvResultCount.setText(resultBookList.size() + " kết quả");
 
-            boolean isEmpty = resultBookList.isEmpty();
-            llResultSection.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
-            llEmptySearch.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
-            if (isEmpty) tvEmptySearchMessage.setText("Không tìm thấy kết quả phù hợp");
+            if (etSearch.getText().toString().trim().isEmpty() && activeCategoryId == null && !isFeaturedOnly) {
+                showBrowseSection();
+            } else {
+                boolean isEmpty = resultBookList.isEmpty();
+                llBrowseSection.setVisibility(View.GONE);
+                llResultSection.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+                llEmptySearch.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+                if (isEmpty) tvEmptySearchMessage.setText("Không tìm thấy kết quả phù hợp");
+            }
         });
 
         viewModel.getIsLoading().observe(this, isLoading -> {
@@ -94,11 +102,17 @@ public class SearchActivity extends AppCompatActivity {
         });
 
         viewModel.loadCategories();
+        loadRecentSearches();
         loadPopularKeywords();
 
-        if (activeCategoryId != null) {
-            showActiveCategoryFilter();
-            viewModel.searchBooks("", activeCategoryId, "relevance");
+        viewModel.setFeaturedOnly(isFeaturedOnly);
+
+        // Luôn luôn khởi tạo lấy toàn bộ sách (hoặc theo danh mục) để chuẩn bị cho Live Search
+        viewModel.searchBooks("", activeCategoryId, currentSortKey());
+
+        if (activeCategoryId != null || isFeaturedOnly) {
+            if (activeCategoryId != null) showActiveCategoryFilter();
+            llBrowseSection.setVisibility(View.GONE);
         } else {
             showBrowseSection();
         }
@@ -141,8 +155,23 @@ public class SearchActivity extends AppCompatActivity {
         rvPopularKeywords.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         rvPopularKeywords.setAdapter(new SearchKeywordAdapter(popularKeywords, this::runSearchFromKeyword));
 
-        rvSearchResults.setLayoutManager(new GridLayoutManager(this, 2));
+        rvSearchResults.setLayoutManager(new GridLayoutManager(this, 3));
         rvSearchResults.setAdapter(new BookAdapter(resultBookList, book -> {
+            String keyword = etSearch.getText().toString().trim();
+            if (!keyword.isEmpty()) {
+                if (!recentSearches.contains(keyword)) {
+                    recentSearches.add(0, keyword);
+                    if (recentSearches.size() > 10) {
+                        recentSearches.remove(recentSearches.size() - 1);
+                    }
+                } else {
+                    recentSearches.remove(keyword);
+                    recentSearches.add(0, keyword);
+                }
+                saveRecentSearches();
+                rvRecentSearches.getAdapter().notifyDataSetChanged();
+            }
+
             Intent intent = new Intent(this, BookDetailActivity.class);
             intent.putExtra(BookDetailActivity.EXTRA_BOOK_ID, book.getBookId());
             startActivity(intent);
@@ -160,6 +189,7 @@ public class SearchActivity extends AppCompatActivity {
 
         tvClearRecent.setOnClickListener(v -> {
             recentSearches.clear();
+            saveRecentSearches();
             rvRecentSearches.getAdapter().notifyDataSetChanged();
         });
 
@@ -173,6 +203,16 @@ public class SearchActivity extends AppCompatActivity {
             @Override
             public void afterTextChanged(Editable s) {
                 ibClearSearch.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
+                
+                String keyword = s.toString().trim();
+                if (keyword.isEmpty() && activeCategoryId == null && !isFeaturedOnly) {
+                    showBrowseSection();
+                } else if (!keyword.isEmpty() || isFeaturedOnly) {
+                    llBrowseSection.setVisibility(View.GONE);
+                }
+                
+                // Live Search: cập nhật kết quả ngay khi gõ
+                viewModel.updateKeywordLocal(keyword);
             }
         });
 
@@ -193,8 +233,15 @@ public class SearchActivity extends AppCompatActivity {
 
         if (!recentSearches.contains(keyword)) {
             recentSearches.add(0, keyword);
-            rvRecentSearches.getAdapter().notifyDataSetChanged();
+            if (recentSearches.size() > 10) {
+                recentSearches.remove(recentSearches.size() - 1);
+            }
+        } else {
+            recentSearches.remove(keyword);
+            recentSearches.add(0, keyword);
         }
+        saveRecentSearches();
+        rvRecentSearches.getAdapter().notifyDataSetChanged();
 
         viewModel.searchBooks(keyword, activeCategoryId, currentSortKey());
     }
@@ -234,5 +281,29 @@ public class SearchActivity extends AppCompatActivity {
         popularKeywords.add("Tư duy nhanh và chậm");
         popularKeywords.add("Sách thiếu nhi");
         rvPopularKeywords.getAdapter().notifyDataSetChanged();
+    }
+
+    private void saveRecentSearches() {
+        android.content.SharedPreferences prefs = getSharedPreferences("recent_searches_prefs", MODE_PRIVATE);
+        android.content.SharedPreferences.Editor editor = prefs.edit();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < recentSearches.size(); i++) {
+            sb.append(recentSearches.get(i));
+            if (i < recentSearches.size() - 1) sb.append("|||");
+        }
+        editor.putString("recent_searches", sb.toString());
+        editor.apply();
+    }
+
+    private void loadRecentSearches() {
+        android.content.SharedPreferences prefs = getSharedPreferences("recent_searches_prefs", MODE_PRIVATE);
+        String saved = prefs.getString("recent_searches", "");
+        recentSearches.clear();
+        if (!saved.isEmpty()) {
+            String[] arr = saved.split("\\|\\|\\|");
+            for (String s : arr) {
+                if (!s.trim().isEmpty()) recentSearches.add(s.trim());
+            }
+        }
     }
 }

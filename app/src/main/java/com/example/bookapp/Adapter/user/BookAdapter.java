@@ -40,6 +40,17 @@ public class BookAdapter extends RecyclerView.Adapter<BookAdapter.BookViewHolder
     public BookViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_book, parent, false);
+
+        // Chỉnh cho item tự động căn giữa và lấp đầy khi dùng trong GridLayout (2 cột)
+        if (parent instanceof RecyclerView) {
+            RecyclerView.LayoutManager lm = ((RecyclerView) parent).getLayoutManager();
+            if (lm instanceof androidx.recyclerview.widget.GridLayoutManager) {
+                ViewGroup.LayoutParams lp = view.getLayoutParams();
+                lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+                view.setLayoutParams(lp);
+            }
+        }
+
         return new BookViewHolder(view);
     }
 
@@ -71,9 +82,38 @@ public class BookAdapter extends RecyclerView.Adapter<BookAdapter.BookViewHolder
             holder.tvSaleBadge.setVisibility(View.GONE);
         }
 
-        // Tên tác giả cần join từ collection "authors" qua book.getAuthorIds();
-        // để đơn giản, tạm ẩn nếu chưa có dữ liệu join sẵn.
-        holder.tvAuthor.setText("");
+        // Hiển thị tên tác giả đã được join trong ViewModel
+        String authorName = book.getAuthorNameDisplay();
+        if (authorName == null || authorName.isEmpty()) {
+            holder.tvAuthor.setText("Đang cập nhật...");
+        } else {
+            holder.tvAuthor.setText(authorName);
+        }
+
+        // Logic Yêu thích (Favorite)
+        java.util.Set<String> favs = com.example.bookapp.Repository.FavoriteRepository.getFavoriteBookIds().getValue();
+        boolean isFav = favs != null && favs.contains(book.getBookId());
+
+        holder.ibFavorite.setColorFilter(
+                androidx.core.content.ContextCompat.getColor(holder.itemView.getContext(),
+                        isFav ? R.color.accent_price : R.color.text_secondary)
+        );
+
+        holder.ibFavorite.setOnClickListener(v -> {
+            boolean currentlyFav = favs != null && favs.contains(book.getBookId());
+            boolean newFav = !currentlyFav;
+            
+            if (favs != null) {
+                if (newFav) favs.add(book.getBookId());
+                else favs.remove(book.getBookId());
+            }
+            
+            holder.ibFavorite.setColorFilter(
+                    androidx.core.content.ContextCompat.getColor(holder.itemView.getContext(),
+                            newFav ? R.color.accent_price : R.color.text_secondary)
+            );
+            com.example.bookapp.Repository.FavoriteRepository.toggleFavorite(book.getBookId(), currentlyFav);
+        });
 
         holder.itemView.setOnClickListener(v -> listener.onClick(book));
     }
@@ -90,6 +130,7 @@ public class BookAdapter extends RecyclerView.Adapter<BookAdapter.BookViewHolder
         BookViewHolder(@NonNull View itemView) {
             super(itemView);
             ivCover = itemView.findViewById(R.id.iv_book_cover);
+            ibFavorite = itemView.findViewById(R.id.ib_favorite);
             tvTitle = itemView.findViewById(R.id.tv_book_title);
             tvAuthor = itemView.findViewById(R.id.tv_book_author);
             tvRating = itemView.findViewById(R.id.tv_book_rating);
