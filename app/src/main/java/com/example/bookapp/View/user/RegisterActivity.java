@@ -61,7 +61,7 @@ public class RegisterActivity extends AppCompatActivity {
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null) {
                 setLoading(false);
-                Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Đăng ký thất bại, vui lòng kiểm tra lại", Toast.LENGTH_SHORT).show();
             }
         });
 

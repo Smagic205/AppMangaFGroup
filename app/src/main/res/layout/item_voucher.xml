@@ -61,10 +61,29 @@
             android:textSize="11sp" />
     </LinearLayout>
 
-    <RadioButton
-        android:id="@+id/rb_voucher_select"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:buttonTint="@color/primary" />
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginStart="8dp">
+
+        <TextView
+            android:id="@+id/tv_voucher_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="20%"
+            android:textColor="@color/primary"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <RadioButton
+            android:id="@+id/rb_voucher_select"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:buttonTint="@color/primary" />
+
+    </LinearLayout>
 
 </LinearLayout>

@@ -94,7 +94,7 @@ public class AdminAddEditVoucherViewModel extends ViewModel {
         Voucher voucher = new Voucher();
         voucher.setVoucherId(voucherId);
         voucher.setCode(code.trim().toUpperCase());
-        voucher.setType(type);
+        voucher.setKind(type);
         voucher.setValue(value);
         voucher.setStartDate(startDate != null ? new Timestamp(startDate) : null);
         voucher.setEndDate(endDate != null ? new Timestamp(endDate) : null);

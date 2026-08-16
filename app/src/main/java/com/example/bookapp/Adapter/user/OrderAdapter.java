@@ -20,6 +20,8 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
 
     public interface OnOrderClickListener {
         void onClick(Order order);
+        void onCancelOrder(Order order);
+        void onReviewOrder(Order order);
     }
 
     private final List<Order> orders;
@@ -43,20 +45,30 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
         Order order = orders.get(position);
         NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
 
-        holder.tvCode.setText("Đơn hàng #" + order.getOrderId());
         holder.tvStatus.setText(mapStatusToLabel(order.getOrderStatus()));
+        
+        // Show all items using OrderProductAdapter
+        if (order.getItems() != null) {
+            OrderProductAdapter productAdapter = new OrderProductAdapter(order.getItems());
+            holder.rvItems.setAdapter(productAdapter);
+        }
+
         holder.tvItemCount.setText(order.getTotalItemCount() + " sản phẩm");
         holder.tvFinalTotal.setText(currencyFormat.format(order.getFinalTotal()) + "đ");
 
-        boolean canCancel = "pending".equals(order.getOrderStatus()) || "confirmed".equals(order.getOrderStatus());
+        boolean canCancel = "pending".equals(order.getOrderStatus());
         boolean canReview = "delivered".equals(order.getOrderStatus());
 
         if (canCancel) {
             holder.btnSecondary.setVisibility(View.VISIBLE);
-            holder.btnSecondary.setText("Hủy đơn");
+            holder.btnSecondary.setText("Hủy");
+            holder.btnSecondary.setTextColor(android.graphics.Color.parseColor("#F44336"));
+            holder.btnSecondary.setBackgroundResource(R.drawable.bg_button_outline_red);
         } else if (canReview) {
             holder.btnSecondary.setVisibility(View.VISIBLE);
             holder.btnSecondary.setText("Đánh giá");
+            holder.btnSecondary.setTextColor(androidx.core.content.ContextCompat.getColor(holder.itemView.getContext(), R.color.primary));
+            holder.btnSecondary.setBackgroundResource(R.drawable.bg_button_outline);
         } else {
             holder.btnSecondary.setVisibility(View.GONE);
         }
@@ -64,6 +76,11 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
 
         holder.itemView.setOnClickListener(v -> listener.onClick(order));
         holder.btnPrimary.setOnClickListener(v -> listener.onClick(order));
+
+        holder.btnSecondary.setOnClickListener(v -> {
+            if (canCancel) listener.onCancelOrder(order);
+            else if (canReview) listener.onReviewOrder(order);
+        });
     }
 
     private String mapStatusToLabel(String status) {
@@ -86,21 +103,18 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
     }
 
     static class OrderViewHolder extends RecyclerView.ViewHolder {
-        TextView tvCode, tvStatus, tvItemCount, tvFinalTotal;
+        TextView tvStatus, tvItemCount, tvFinalTotal;
         Button btnPrimary, btnSecondary;
-        RecyclerView rvThumbs;
+        RecyclerView rvItems;
 
         OrderViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvCode = itemView.findViewById(R.id.tv_order_code);
             tvStatus = itemView.findViewById(R.id.tv_order_status);
             tvItemCount = itemView.findViewById(R.id.tv_order_item_count);
             tvFinalTotal = itemView.findViewById(R.id.tv_order_final_total);
             btnPrimary = itemView.findViewById(R.id.btn_order_action_primary);
             btnSecondary = itemView.findViewById(R.id.btn_order_action_secondary);
-            rvThumbs = itemView.findViewById(R.id.rv_order_item_thumbs);
-            // TODO: gắn adapter ảnh thu nhỏ cho rvThumbs (vd dùng lại OrderItemAdapter
-            // với 1 layout item_order_thumb.xml nhỏ gọn hơn) khi cần hiển thị bìa sách.
+            rvItems = itemView.findViewById(R.id.rv_order_items);
         }
     }
 }

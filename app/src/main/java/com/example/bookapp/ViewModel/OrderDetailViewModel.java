@@ -32,8 +32,7 @@ public class OrderDetailViewModel extends ViewModel {
 
     /** Cập nhật trạng thái đơn hàng sang "cancelled". */
     public void cancelOrder(String orderId) {
-        orderRepository.updateOrderStatus(orderId, Constants.ORDER_CANCELLED,
-                new FirebaseCallback<Void>() {
+        orderRepository.updateOrderStatus(orderId, "cancelled", new FirebaseCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
                         _cancelSuccess.setValue(true);

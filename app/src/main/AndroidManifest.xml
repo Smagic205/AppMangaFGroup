@@ -52,6 +52,9 @@
 
         <!-- Book Detail -->
         <activity
+            android:name=".View.user.BookReviewsActivity"
+            android:exported="false" />
+        <activity
             android:name=".View.user.BookDetailActivity"
             android:exported="false" />
 
@@ -92,6 +95,10 @@
 
         <activity
             android:name=".View.user.MyReviewsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".View.user.FavoriteBooksActivity"
             android:exported="false" />
 
         <!-- Notifications -->

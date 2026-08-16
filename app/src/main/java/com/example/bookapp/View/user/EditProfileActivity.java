@@ -102,7 +102,7 @@ public class EditProfileActivity extends AppCompatActivity {
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null) {
                 setLoading(false);
-                Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Có lỗi xảy ra, vui lòng thử lại", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -117,7 +117,7 @@ public class EditProfileActivity extends AppCompatActivity {
     private void bindViews() {
         ivAvatar = findViewById(R.id.iv_avatar);
         ibChangeAvatar = findViewById(R.id.ib_change_avatar);
-        etFullName = findViewById(R.id.et_full_name);
+        etFullName = findViewById(R.id.et_name);
         etEmail = findViewById(R.id.et_email);
         etPhone = findViewById(R.id.et_phone);
         etBirthday = findViewById(R.id.et_birthday);

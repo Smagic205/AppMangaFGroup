@@ -18,20 +18,26 @@ public class SelectVoucherViewModel extends ViewModel {
     private final VoucherRepository voucherRepository = new VoucherRepository();
 
     private final MutableLiveData<List<Voucher>> _vouchers = new MutableLiveData<>();
-    /** null = mã không hợp lệ; non-null = mã hợp lệ và có thể dùng. */
-    private final MutableLiveData<Voucher> _validatedVoucher = new MutableLiveData<>();
-
     public LiveData<List<Voucher>> getVouchers() { return _vouchers; }
-    public LiveData<Voucher> getValidatedVoucher() { return _validatedVoucher; }
 
     public void loadAvailableVouchers() {
         voucherRepository.getAvailableVouchers().observeForever(
                 vouchers -> _vouchers.setValue(vouchers));
     }
 
+    public interface ValidationCallback {
+        void onResult(boolean isValid);
+    }
+
     /** Kiểm tra mã voucher nhập tay có hợp lệ không. */
-    public void validateCode(String code) {
-        voucherRepository.getVoucherByCode(code).observeForever(
-                voucher -> _validatedVoucher.setValue(voucher));
+    public void validateCode(String code, ValidationCallback callback) {
+        LiveData<Voucher> liveData = voucherRepository.getVoucherByCode(code);
+        liveData.observeForever(new androidx.lifecycle.Observer<Voucher>() {
+            @Override
+            public void onChanged(Voucher voucher) {
+                callback.onResult(voucher != null);
+                liveData.removeObserver(this);
+            }
+        });
     }
 }

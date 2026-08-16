@@ -1,11 +1,14 @@
 package com.example.bookapp.View.user;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.lifecycle.ViewModelProvider;
@@ -17,6 +20,7 @@ import com.example.bookapp.Adapter.user.OrderAdapter;
 import com.example.bookapp.Model.Order;
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.Constants;
+import com.example.bookapp.Utils.FirebaseCallback;
 import com.example.bookapp.Utils.FirebaseUtils;
 import com.example.bookapp.ViewModel.OrderHistoryViewModel;
 import com.google.android.material.tabs.TabLayout;
@@ -95,15 +99,52 @@ public class OrderHistoryActivity extends AppCompatActivity {
 
     private void setupRecyclerView() {
         rvOrders.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new OrderAdapter(orderList, order -> {
-            Intent intent = new Intent(this, OrderDetailActivity.class);
-            intent.putExtra(OrderDetailActivity.EXTRA_ORDER_ID, order.getOrderId());
-            startActivity(intent);
+        adapter = new OrderAdapter(orderList, new OrderAdapter.OnOrderClickListener() {
+            @Override
+            public void onClick(Order order) {
+                Intent intent = new Intent(OrderHistoryActivity.this, OrderDetailActivity.class);
+                intent.putExtra(OrderDetailActivity.EXTRA_ORDER_ID, order.getOrderId());
+                startActivity(intent);
+            }
+
+            @Override
+            public void onCancelOrder(Order order) {
+                new AlertDialog.Builder(OrderHistoryActivity.this)
+                        .setTitle("Hủy đơn hàng")
+                        .setMessage("Bạn có xác nhận hủy đơn hàng này?")
+                        .setPositiveButton("Đồng ý", (dialog, which) -> {
+                            viewModel.cancelOrder(order.getOrderId(), new FirebaseCallback<Void>() {
+                                @Override
+                                public void onSuccess(Void result) {
+                                    Toast.makeText(OrderHistoryActivity.this, "Hủy đơn thành công", Toast.LENGTH_SHORT).show();
+                                    String uid = FirebaseUtils.getCurrentUserId();
+                                    if (uid != null) viewModel.loadOrders(uid, currentSelectedStatus());
+                                }
+
+                                @Override
+                                public void onFailure(Exception e) {
+                                    Toast.makeText(OrderHistoryActivity.this, "Không thể hủy đơn hàng", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        })
+                        .setNegativeButton("Đóng", null)
+                        .show();
+            }
+
+            @Override
+            public void onReviewOrder(Order order) {
+                if (order.getItems() == null || order.getItems().isEmpty()) return;
+                Intent intent = new Intent(OrderHistoryActivity.this, WriteReviewActivity.class);
+                intent.putExtra(WriteReviewActivity.EXTRA_ORDER_ID, order.getOrderId());
+                intent.putExtra(WriteReviewActivity.EXTRA_BOOK_ID, order.getItems().get(0).getBookId());
+                startActivity(intent);
+            }
         });
         rvOrders.setAdapter(adapter);
     }
 
     private void setupTabs() {
+        tabOrderStatus.removeAllTabs();
         tabOrderStatus.addTab(tabOrderStatus.newTab().setText("Tất cả"));
         tabOrderStatus.addTab(tabOrderStatus.newTab().setText("Chờ xác nhận"));
         tabOrderStatus.addTab(tabOrderStatus.newTab().setText("Đang giao"));

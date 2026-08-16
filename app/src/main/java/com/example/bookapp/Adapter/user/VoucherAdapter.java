@@ -46,6 +46,7 @@ public class VoucherAdapter extends RecyclerView.Adapter<VoucherAdapter.VoucherV
 
         holder.tvCode.setText(voucher.getCode());
         holder.tvDesc.setText(buildDescription(voucher));
+        holder.tvValue.setText(buildValueLabel(voucher));
 
         if (voucher.getEndDate() != null) {
             holder.tvExpiry.setText("HSD: " + sdf.format(voucher.getEndDate().toDate()));
@@ -61,16 +62,35 @@ public class VoucherAdapter extends RecyclerView.Adapter<VoucherAdapter.VoucherV
     }
 
     private String buildDescription(Voucher voucher) {
-        switch (voucher.getType()) {
+        if (voucher.getKind() == null) return "";
+        switch (voucher.getKind()) {
             case "percent":
                 return "Giảm " + (int) voucher.getValue() + "% cho đơn hàng";
             case "fixed":
-                return "Giảm " + (int) voucher.getValue() + "đ cho đơn hàng";
+                return "Giảm " + formatVND((long) voucher.getValue()) + " cho đơn hàng";
             case "freeship":
                 return "Miễn phí vận chuyển toàn đơn";
             default:
                 return "";
         }
+    }
+
+    private String buildValueLabel(Voucher voucher) {
+        if (voucher.getKind() == null) return "";
+        switch (voucher.getKind()) {
+            case "percent":
+                return (int) voucher.getValue() + "%";
+            case "fixed":
+                return "-" + formatVND((long) voucher.getValue());
+            case "freeship":
+                return "Ship 0đ";
+            default:
+                return "";
+        }
+    }
+
+    private String formatVND(long amount) {
+        return java.text.NumberFormat.getInstance(new java.util.Locale("vi", "VN")).format(amount) + "đ";
     }
 
     @Override
@@ -83,7 +103,7 @@ public class VoucherAdapter extends RecyclerView.Adapter<VoucherAdapter.VoucherV
     }
 
     static class VoucherViewHolder extends RecyclerView.ViewHolder {
-        TextView tvCode, tvDesc, tvExpiry;
+        TextView tvCode, tvDesc, tvExpiry, tvValue;
         RadioButton rbSelect;
 
         VoucherViewHolder(@NonNull View itemView) {
@@ -91,6 +111,7 @@ public class VoucherAdapter extends RecyclerView.Adapter<VoucherAdapter.VoucherV
             tvCode = itemView.findViewById(R.id.tv_voucher_code);
             tvDesc = itemView.findViewById(R.id.tv_voucher_desc);
             tvExpiry = itemView.findViewById(R.id.tv_voucher_expiry);
+            tvValue = itemView.findViewById(R.id.tv_voucher_value);
             rbSelect = itemView.findViewById(R.id.rb_voucher_select);
         }
     }

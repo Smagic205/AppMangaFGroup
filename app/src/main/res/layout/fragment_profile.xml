@@ -321,7 +321,7 @@
                 <View style="@style/DividerLine" />
 
                 <LinearLayout
-                    android:id="@+id/ll_menu_reviews"
+                    android:id="@+id/ll_menu_favorites"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
@@ -331,7 +331,7 @@
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@drawable/ic_star"
+                        android:src="@drawable/ic_heart_outline"
                         app:tint="@color/primary" />
 
                     <TextView
@@ -339,7 +339,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="14dp"
                         android:layout_weight="1"
-                        android:text="Đánh giá của tôi"
+                        android:text="Sách yêu thích"
                         android:textColor="@color/text_primary"
                         android:textSize="14sp" />
 

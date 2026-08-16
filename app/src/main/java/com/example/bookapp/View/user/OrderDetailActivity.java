@@ -27,6 +27,8 @@ public class OrderDetailActivity extends AppCompatActivity {
 
     private TextView tvOrderId, tvOrderStatus, tvAddressNamePhone, tvAddressDetail,
             tvTotalPrice, tvShippingFee, tvDiscount, tvFinalTotal, tvNote;
+    private android.widget.ImageView step1Dot, step2Dot, step3Dot, step4Dot;
+    private View stepLine1, stepLine2, stepLine3;
     private RecyclerView rvOrderItems;
     private Button btnCancelOrder, btnReviewOrder;
 
@@ -53,7 +55,10 @@ public class OrderDetailActivity extends AppCompatActivity {
         });
 
         viewModel.getCancelSuccess().observe(this, success -> {
-            // loadOrder đã được gọi lại bên trong ViewModel sau khi hủy thành công
+            if (Boolean.TRUE.equals(success)) {
+                android.widget.Toast.makeText(this, "Đã hủy đơn hàng", android.widget.Toast.LENGTH_SHORT).show();
+                finish();
+            }
         });
 
         if (orderId != null) viewModel.loadOrder(orderId);
@@ -84,6 +89,14 @@ public class OrderDetailActivity extends AppCompatActivity {
         tvNote = findViewById(R.id.tv_note);
         btnCancelOrder = findViewById(R.id.btn_cancel_order);
         btnReviewOrder = findViewById(R.id.btn_review_order);
+        
+        step1Dot = findViewById(R.id.step1_dot);
+        step2Dot = findViewById(R.id.step2_dot);
+        step3Dot = findViewById(R.id.step3_dot);
+        step4Dot = findViewById(R.id.step4_dot);
+        stepLine1 = findViewById(R.id.step_line1);
+        stepLine2 = findViewById(R.id.step_line2);
+        stepLine3 = findViewById(R.id.step_line3);
 
         rvOrderItems.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
     }
@@ -110,11 +123,54 @@ public class OrderDetailActivity extends AppCompatActivity {
                 ? "Không có" : order.getNote()));
 
         // Chỉ cho hủy khi đơn còn ở trạng thái đầu, chỉ cho đánh giá khi đã giao xong
-        boolean canCancel = "pending".equals(order.getOrderStatus()) || "confirmed".equals(order.getOrderStatus());
+        boolean canCancel = "pending".equals(order.getOrderStatus());
         boolean canReview = "delivered".equals(order.getOrderStatus());
 
         btnCancelOrder.setVisibility(canCancel ? View.VISIBLE : View.GONE);
         btnReviewOrder.setVisibility(canReview ? View.VISIBLE : View.GONE);
+        
+        updateOrderProgress(order.getOrderStatus());
+    }
+
+    private void updateOrderProgress(String status) {
+        if (status == null) return;
+        
+        int s1 = 0, s2 = 0, s3 = 0, s4 = 0;
+        int l1 = 0, l2 = 0, l3 = 0;
+
+        if ("pending".equals(status)) {
+            s1 = 1;
+        } else if ("confirmed".equals(status) || "packing".equals(status)) {
+            s1 = 2; s2 = 1; l1 = 1;
+        } else if ("shipping".equals(status)) {
+            s1 = 2; s2 = 2; s3 = 1; l1 = 1; l2 = 1;
+        } else if ("delivered".equals(status)) {
+            s1 = 2; s2 = 2; s3 = 2; s4 = 2; l1 = 1; l2 = 1; l3 = 1;
+        } else {
+            s1 = 1; 
+        }
+
+        setStepState(step1Dot, s1);
+        setStepState(step2Dot, s2);
+        setStepState(step3Dot, s3);
+        setStepState(step4Dot, s4);
+
+        stepLine1.setBackgroundResource(l1 == 1 ? R.color.status_success : R.color.divider);
+        stepLine2.setBackgroundResource(l2 == 1 ? R.color.status_success : R.color.divider);
+        stepLine3.setBackgroundResource(l3 == 1 ? R.color.status_success : R.color.divider);
+    }
+
+    private void setStepState(android.widget.ImageView dot, int state) {
+        if (state == 0) {
+            dot.setBackgroundTintList(androidx.core.content.ContextCompat.getColorStateList(this, R.color.divider));
+            dot.setColorFilter(androidx.core.content.ContextCompat.getColor(this, R.color.text_hint), android.graphics.PorterDuff.Mode.SRC_IN);
+        } else if (state == 1) {
+            dot.setBackgroundTintList(androidx.core.content.ContextCompat.getColorStateList(this, R.color.primary));
+            dot.setColorFilter(androidx.core.content.ContextCompat.getColor(this, R.color.white), android.graphics.PorterDuff.Mode.SRC_IN);
+        } else if (state == 2) {
+            dot.setBackgroundTintList(androidx.core.content.ContextCompat.getColorStateList(this, R.color.status_success));
+            dot.setColorFilter(androidx.core.content.ContextCompat.getColor(this, R.color.white), android.graphics.PorterDuff.Mode.SRC_IN);
+        }
     }
 
     private String mapStatusToLabel(String status) {
@@ -133,9 +189,14 @@ public class OrderDetailActivity extends AppCompatActivity {
     private void confirmCancelOrder() {
         new AlertDialog.Builder(this)
                 .setTitle("Hủy đơn hàng")
-                .setMessage("Bạn có chắc muốn hủy đơn hàng này?")
-                .setPositiveButton("Hủy đơn", (dialog, which) -> viewModel.cancelOrder(orderId))
-                .setNegativeButton("Không", null)
+                .setMessage("Bạn có xác nhận hủy đơn hàng này?")
+                .setPositiveButton("Đồng ý", (dialog, which) -> cancelOrder())
+                .setNegativeButton("Đóng", null)
                 .show();
+    }
+
+    private void cancelOrder() {
+        if (orderId == null) return;
+        viewModel.cancelOrder(orderId);
     }
 }

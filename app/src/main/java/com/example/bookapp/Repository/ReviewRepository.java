@@ -23,14 +23,25 @@ public class ReviewRepository {
         String reviewId = UUID.randomUUID().toString();
         review.setReviewId(reviewId);
 
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_REVIEWS)
-                .document(reviewId)
-                .set(review)
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(callback::onFailure);
+        com.google.firebase.firestore.FirebaseFirestore db = FirebaseUtils.getFirestore();
+        com.google.firebase.firestore.DocumentReference bookRef = db.collection(Constants.COLLECTION_BOOKS).document(review.getBookId());
+        com.google.firebase.firestore.DocumentReference reviewRef = db.collection(Constants.COLLECTION_REVIEWS).document(reviewId);
 
-        // TODO: nên trigger cập nhật lại rating/ratingCount trung bình của book
-        // bằng Cloud Function (onCreate của collection reviews) thay vì tính trong app.
+        db.runTransaction(transaction -> {
+            com.google.firebase.firestore.DocumentSnapshot bookSnap = transaction.get(bookRef);
+            if (bookSnap.exists()) {
+                double currentRating = bookSnap.getDouble("rating") != null ? bookSnap.getDouble("rating") : 0;
+                long currentCount = bookSnap.getLong("ratingCount") != null ? bookSnap.getLong("ratingCount") : 0;
+
+                double newRating = ((currentRating * currentCount) + review.getRating()) / (currentCount + 1);
+
+                transaction.update(bookRef, "rating", newRating);
+                transaction.update(bookRef, "ratingCount", currentCount + 1);
+            }
+            transaction.set(reviewRef, review);
+            return null;
+        }).addOnSuccessListener(unused -> callback.onSuccess(null))
+          .addOnFailureListener(callback::onFailure);
     }
 
     public LiveData<List<Review>> getReviewsByUser(String uid) {
@@ -60,8 +71,6 @@ public class ReviewRepository {
 
         FirebaseUtils.getFirestore().collection(Constants.COLLECTION_REVIEWS)
                 .whereEqualTo("bookId", bookId)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(limit)
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
                     List<Review> reviews = new ArrayList<>();
@@ -69,6 +78,40 @@ public class ReviewRepository {
                         Review review = doc.toObject(Review.class);
                         review.setReviewId(doc.getId());
                         reviews.add(review);
+                    });
+                    // Sắp xếp giảm dần theo thời gian tạo (khắc phục lỗi thiếu composite index)
+                    reviews.sort((r1, r2) -> {
+                        if (r1.getCreatedAt() == null || r2.getCreatedAt() == null) return 0;
+                        return r2.getCreatedAt().compareTo(r1.getCreatedAt());
+                    });
+                    List<Review> finalReviews = reviews;
+                    if (finalReviews.size() > limit) {
+                        finalReviews = finalReviews.subList(0, limit);
+                    }
+                    liveData.setValue(finalReviews);
+                })
+                .addOnFailureListener(e -> liveData.setValue(new ArrayList<>()));
+
+        return liveData;
+    }
+
+    public LiveData<List<Review>> getAllReviewsByBook(String bookId) {
+        MutableLiveData<List<Review>> liveData = new MutableLiveData<>();
+
+        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_REVIEWS)
+                .whereEqualTo("bookId", bookId)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<Review> reviews = new ArrayList<>();
+                    querySnapshot.forEach(doc -> {
+                        Review review = doc.toObject(Review.class);
+                        review.setReviewId(doc.getId());
+                        reviews.add(review);
+                    });
+                    // Sắp xếp giảm dần theo thời gian tạo (khắc phục lỗi thiếu composite index)
+                    reviews.sort((r1, r2) -> {
+                        if (r1.getCreatedAt() == null || r2.getCreatedAt() == null) return 0;
+                        return r2.getCreatedAt().compareTo(r1.getCreatedAt());
                     });
                     liveData.setValue(reviews);
                 })

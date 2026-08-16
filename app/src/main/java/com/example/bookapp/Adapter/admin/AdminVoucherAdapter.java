@@ -54,10 +54,10 @@ public class AdminVoucherAdapter extends RecyclerView.Adapter<AdminVoucherAdapte
 
         String valueLabel;
         String conditionLabel;
-        if (Constants.VOUCHER_PERCENT.equals(voucher.getType())) {
+        if (Constants.VOUCHER_PERCENT.equals(voucher.getKind())) {
             valueLabel = ((int) voucher.getValue()) + "%";
             conditionLabel = "Giảm theo phần trăm đơn hàng";
-        } else if (Constants.VOUCHER_FREESHIP.equals(voucher.getType())) {
+        } else if (Constants.VOUCHER_FREESHIP.equals(voucher.getKind())) {
             valueLabel = "Ship";
             conditionLabel = "Miễn phí vận chuyển";
         } else {

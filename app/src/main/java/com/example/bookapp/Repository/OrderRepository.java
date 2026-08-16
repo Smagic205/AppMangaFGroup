@@ -56,13 +56,10 @@ public class OrderRepository {
     public LiveData<List<Order>> getOrdersByUser(String uid, @Nullable String status) {
         MutableLiveData<List<Order>> liveData = new MutableLiveData<>();
 
+        // Lấy tất cả đơn hàng của userId, bỏ qua .orderBy và .whereEqualTo("orderStatus")
+        // để tránh lỗi FAILED_PRECONDITION do thiếu composite index trên Firestore.
         Query query = FirebaseUtils.getFirestore().collection(Constants.COLLECTION_ORDERS)
-                .whereEqualTo("userId", uid)
-                .orderBy("createdAt", Query.Direction.DESCENDING);
-
-        if (status != null && !"all".equals(status)) {
-            query = query.whereEqualTo("orderStatus", status);
-        }
+                .whereEqualTo("userId", uid);
 
         query.get()
                 .addOnSuccessListener(querySnapshot -> {
@@ -70,8 +67,27 @@ public class OrderRepository {
                     querySnapshot.forEach(doc -> {
                         Order order = doc.toObject(Order.class);
                         order.setOrderId(doc.getId());
-                        orders.add(order);
+                        
+                        // Lọc theo trạng thái trên máy khách (client-side)
+                        boolean isAllTab = status == null || "all".equals(status);
+                        if (isAllTab) {
+                            String orderStatus = order.getOrderStatus();
+                            if (!"cancelled".equals(orderStatus) && !"delivered".equals(orderStatus)) {
+                                orders.add(order);
+                            }
+                        } else if (status.equals(order.getOrderStatus())) {
+                            orders.add(order);
+                        }
                     });
+                    
+                    // Sắp xếp theo ngày tạo mới nhất (descending) trên máy khách
+                    orders.sort((o1, o2) -> {
+                        if (o1.getCreatedAt() != null && o2.getCreatedAt() != null) {
+                            return o2.getCreatedAt().compareTo(o1.getCreatedAt());
+                        }
+                        return 0;
+                    });
+                    
                     liveData.setValue(orders);
                 })
                 .addOnFailureListener(e -> liveData.setValue(new ArrayList<>()));
@@ -83,6 +99,14 @@ public class OrderRepository {
         FirebaseUtils.getFirestore().collection(Constants.COLLECTION_ORDERS)
                 .document(orderId)
                 .update("orderStatus", newStatus)
+                .addOnSuccessListener(unused -> callback.onSuccess(null))
+                .addOnFailureListener(callback::onFailure);
+    }
+
+    public void deleteOrder(String orderId, FirebaseCallback<Void> callback) {
+        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_ORDERS)
+                .document(orderId)
+                .delete()
                 .addOnSuccessListener(unused -> callback.onSuccess(null))
                 .addOnFailureListener(callback::onFailure);
     }

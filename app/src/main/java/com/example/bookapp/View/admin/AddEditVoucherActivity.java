@@ -132,8 +132,8 @@ public class AddEditVoucherActivity extends AdminBaseActivity {
         etEndDate.setText(PriceFormatter.formatDate(voucher.getEndDate()));
 
         int checkedId = R.id.chip_type_percent;
-        if (Constants.VOUCHER_FIXED.equals(voucher.getType())) checkedId = R.id.chip_type_fixed;
-        else if (Constants.VOUCHER_FREESHIP.equals(voucher.getType())) checkedId = R.id.chip_type_freeship;
+        if (Constants.VOUCHER_FIXED.equals(voucher.getKind())) checkedId = R.id.chip_type_fixed;
+        else if (Constants.VOUCHER_FREESHIP.equals(voucher.getKind())) checkedId = R.id.chip_type_freeship;
         cgType.check(checkedId);
     }
 

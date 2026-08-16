@@ -77,7 +77,7 @@ public class WriteReviewActivity extends AppCompatActivity {
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null) {
                 btnSubmit.setEnabled(true);
-                Toast.makeText(this, "Lỗi: " + error, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Có lỗi xảy ra, vui lòng thử lại", Toast.LENGTH_SHORT).show();
             }
         });
 

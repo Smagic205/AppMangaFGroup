@@ -35,4 +35,8 @@ public class OrderHistoryViewModel extends ViewModel {
             _isLoading.setValue(false);
         });
     }
+
+    public void cancelOrder(String orderId, com.example.bookapp.Utils.FirebaseCallback<Void> callback) {
+        orderRepository.updateOrderStatus(orderId, "cancelled", callback);
+    }
 }

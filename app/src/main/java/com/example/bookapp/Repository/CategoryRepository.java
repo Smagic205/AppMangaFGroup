@@ -35,4 +35,29 @@ public class CategoryRepository {
 
         return liveData;
     }
+
+    public LiveData<List<Category>> getCategoriesByIds(List<String> categoryIds) {
+        MutableLiveData<List<Category>> liveData = new MutableLiveData<>();
+
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            liveData.setValue(new ArrayList<>());
+            return liveData;
+        }
+
+        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_CATEGORIES)
+                .whereIn("__name__", categoryIds)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<Category> categories = new ArrayList<>();
+                    querySnapshot.forEach(doc -> {
+                        Category category = doc.toObject(Category.class);
+                        category.setCategoryId(doc.getId());
+                        categories.add(category);
+                    });
+                    liveData.setValue(categories);
+                })
+                .addOnFailureListener(e -> liveData.setValue(new ArrayList<>()));
+
+        return liveData;
+    }
 }

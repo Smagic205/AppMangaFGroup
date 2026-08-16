@@ -14,6 +14,8 @@
         <item name="android:windowBackground">@color/background</item>
         <!-- Màu chữ mặc định -->
         <item name="android:textColorPrimary">@color/text_primary</item>
+        <!-- Màu chữ hint (placeholder) mặc định -->
+        <item name="android:textColorHint">@color/text_hint</item>
     </style>
 
     <!-- ===== TEXT STYLES ===== -->

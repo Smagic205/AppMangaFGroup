@@ -104,9 +104,24 @@ public class CheckoutViewModel extends ViewModel {
         });
     }
 
+    public void loadDefaultAddress(String uid) {
+        addressRepository.getAddresses(uid).observeForever(addresses -> {
+            if (addresses != null && !addresses.isEmpty()) {
+                _selectedAddress.setValue(addresses.get(0));
+            } else {
+                _selectedAddress.setValue(null);
+            }
+        });
+    }
+
     public void loadVoucherByCode(String code) {
         voucherRepository.getVoucherByCode(code).observeForever(voucher ->
                 _selectedVoucher.setValue(voucher));
+    }
+
+    /** Set voucher trực tiếp từ Parcelable (không cần query lại Firestore). */
+    public void setSelectedVoucher(Voucher voucher) {
+        _selectedVoucher.setValue(voucher);
     }
 
     public void placeOrder(String uid, List<OrderItem> orderItems, Address address,

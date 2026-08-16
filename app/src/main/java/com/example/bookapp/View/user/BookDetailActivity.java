@@ -1,37 +1,48 @@
 package com.example.bookapp.View.user;
 
+import android.content.Intent;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.example.bookapp.Adapter.user.BookAdapter;
+import com.example.bookapp.Adapter.user.BookReviewAdapter;
 import com.example.bookapp.Model.Book;
 import com.example.bookapp.R;
 import com.example.bookapp.Utils.FirebaseUtils;
 import com.example.bookapp.ViewModel.BookDetailViewModel;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class BookDetailActivity extends AppCompatActivity {
 
     public static final String EXTRA_BOOK_ID = "extra_book_id";
 
+    private CoordinatorLayout clMainContent;
+    private ProgressBar progressBar;
+    
     private ImageView ivCover;
+    private ImageView[] quickStars;
     private TextView tvTitle, tvAuthor, tvCategoryTag, tvRating, tvReviewCount, tvSoldCount,
             tvSalePrice, tvOriginalPrice, tvDiscountPercent, tvStockStatus,
-            tvDescription, tvExpandDescription, tvSeeAllReviews, tvQuantity;
+            tvDescription, tvExpandDescription, tvSeeAllReviews, tvReviewSectionTitle, tvQuantity;
     private RecyclerView rvRelatedBooks, rvReviewsPreview;
     private ImageButton ibDecreaseQty, ibIncreaseQty, ibAddToCartIcon;
     private Button btnBuyNow;
@@ -39,8 +50,12 @@ public class BookDetailActivity extends AppCompatActivity {
     private String bookId;
     private Book currentBook;
     private int quantity = 1;
+    private boolean isBuyNowMode = false;
 
     private BookDetailViewModel viewModel;
+    
+    private BookAdapter relatedBookAdapter;
+    private BookReviewAdapter reviewAdapter;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -63,26 +78,80 @@ public class BookDetailActivity extends AppCompatActivity {
                 bindBookData(book);
                 viewModel.loadRelatedBooks(bookId);
                 viewModel.incrementViewCount(bookId, book.getViewCount());
+                
+                progressBar.setVisibility(View.GONE);
+                clMainContent.setVisibility(View.VISIBLE);
+            }
+        });
+
+        viewModel.getAuthorsText().observe(this, text -> tvAuthor.setText(text));
+        
+        viewModel.getCategoriesText().observe(this, text -> tvCategoryTag.setText(text));
+        
+        viewModel.getReviews().observe(this, reviews -> {
+            if (reviews != null && !reviews.isEmpty()) {
+                reviewAdapter.setReviewList(reviews);
+                rvReviewsPreview.setVisibility(View.VISIBLE);
+            } else {
+                rvReviewsPreview.setVisibility(View.GONE);
+            }
+        });
+        
+        viewModel.getRelatedBooks().observe(this, books -> {
+            if (books != null) {
+                relatedBookAdapter = new BookAdapter(books, book -> {
+                    Intent intent = new Intent(this, BookDetailActivity.class);
+                    intent.putExtra(EXTRA_BOOK_ID, book.getBookId());
+                    startActivity(intent);
+                });
+                rvRelatedBooks.setAdapter(relatedBookAdapter);
             }
         });
 
         viewModel.getAddToCartSuccess().observe(this, success -> {
             if (Boolean.TRUE.equals(success)) {
-                Toast.makeText(this, "Đã thêm vào giỏ hàng", Toast.LENGTH_SHORT).show();
+                if (isBuyNowMode) {
+                    Intent intent = new Intent(this, CheckoutActivity.class);
+                    ArrayList<String> ids = new ArrayList<>();
+                    ids.add(bookId);
+                    intent.putStringArrayListExtra(CheckoutActivity.EXTRA_SELECTED_BOOK_IDS, ids);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(this, "Đã thêm vào giỏ hàng", Toast.LENGTH_SHORT).show();
+                }
+                // Reset state to avoid re-triggering on rotation
+                isBuyNowMode = false; 
             }
         });
 
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null) {
-                Toast.makeText(this, "Lỗi: " + error, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Có lỗi xảy ra, vui lòng thử lại", Toast.LENGTH_SHORT).show();
             }
         });
 
-        if (bookId != null) viewModel.loadBook(bookId);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (bookId != null) {
+            progressBar.setVisibility(View.VISIBLE);
+            clMainContent.setVisibility(View.INVISIBLE);
+            viewModel.loadBook(bookId);
+        }
     }
 
     private void bindViews() {
+        clMainContent = findViewById(R.id.cl_main_content);
+        progressBar = findViewById(R.id.progress_bar);
+        
         ivCover = findViewById(R.id.iv_cover);
+        quickStars = new ImageView[]{
+                findViewById(R.id.iv_quick_star1), findViewById(R.id.iv_quick_star2),
+                findViewById(R.id.iv_quick_star3), findViewById(R.id.iv_quick_star4),
+                findViewById(R.id.iv_quick_star5)
+        };
         tvTitle = findViewById(R.id.tv_title);
         tvAuthor = findViewById(R.id.tv_author);
         tvCategoryTag = findViewById(R.id.tv_category_tag);
@@ -96,6 +165,7 @@ public class BookDetailActivity extends AppCompatActivity {
         tvDescription = findViewById(R.id.tv_description);
         tvExpandDescription = findViewById(R.id.tv_expand_description);
         tvSeeAllReviews = findViewById(R.id.tv_see_all_reviews);
+        tvReviewSectionTitle = findViewById(R.id.tv_review_section_title);
         tvQuantity = findViewById(R.id.tv_quantity);
         rvRelatedBooks = findViewById(R.id.rv_related_books);
         rvReviewsPreview = findViewById(R.id.rv_reviews_preview);
@@ -105,12 +175,16 @@ public class BookDetailActivity extends AppCompatActivity {
         btnBuyNow = findViewById(R.id.btn_buy_now);
 
         rvRelatedBooks.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        relatedBookAdapter = new BookAdapter(new ArrayList<>(), book -> {});
+        rvRelatedBooks.setAdapter(relatedBookAdapter);
+        
         rvReviewsPreview.setLayoutManager(new LinearLayoutManager(this));
+        reviewAdapter = new BookReviewAdapter(this, new ArrayList<>());
+        rvReviewsPreview.setAdapter(reviewAdapter);
     }
 
     private void setupClicks() {
         tvExpandDescription.setOnClickListener(v -> {
-            // Toggle giữa rút gọn (maxLines cố định trong XML) và hiển thị đầy đủ
             boolean expanded = tvDescription.getMaxLines() != Integer.MAX_VALUE;
             tvDescription.setMaxLines(expanded ? Integer.MAX_VALUE : 4);
             tvExpandDescription.setText(expanded ? "Thu gọn" : "Xem thêm");
@@ -129,12 +203,31 @@ public class BookDetailActivity extends AppCompatActivity {
             }
         });
 
-        ibAddToCartIcon.setOnClickListener(v -> addToCart());
-        btnBuyNow.setOnClickListener(v -> addToCart());
+        ibAddToCartIcon.setOnClickListener(v -> {
+            isBuyNowMode = false;
+            addToCart();
+        });
+        btnBuyNow.setOnClickListener(v -> {
+            isBuyNowMode = true;
+            addToCart();
+        });
 
         tvSeeAllReviews.setOnClickListener(v -> {
-            // TODO: mở màn danh sách toàn bộ review của sách
+            Intent intent = new Intent(this, BookReviewsActivity.class);
+            intent.putExtra(BookReviewsActivity.EXTRA_BOOK_ID, bookId);
+            startActivity(intent);
         });
+
+        View.OnClickListener quickRateClickListener = v -> {
+            Intent intent = new Intent(this, WriteReviewActivity.class);
+            intent.putExtra(WriteReviewActivity.EXTRA_BOOK_ID, bookId);
+            startActivity(intent);
+        };
+        for (ImageView star : quickStars) {
+            if (star != null) {
+                star.setOnClickListener(quickRateClickListener);
+            }
+        }
     }
 
     private void bindBookData(Book book) {
@@ -143,6 +236,9 @@ public class BookDetailActivity extends AppCompatActivity {
         tvTitle.setText(book.getTitle());
         tvRating.setText(String.format(Locale.getDefault(), "%.1f", book.getRating()));
         tvReviewCount.setText("(" + book.getRatingCount() + " đánh giá)");
+        if (tvReviewSectionTitle != null) {
+            tvReviewSectionTitle.setText("Đánh giá (" + book.getRatingCount() + ")");
+        }
         tvSoldCount.setText("Đã bán " + book.getSoldCount());
         tvDescription.setText(book.getDescription());
 
@@ -154,6 +250,7 @@ public class BookDetailActivity extends AppCompatActivity {
             tvSalePrice.setText(currencyFormat.format(book.getSalePrice()) + "đ");
             tvOriginalPrice.setText(currencyFormat.format(book.getPrice()) + "đ");
             tvOriginalPrice.setVisibility(View.VISIBLE);
+            tvOriginalPrice.setPaintFlags(tvOriginalPrice.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
             tvDiscountPercent.setVisibility(View.VISIBLE);
             int percent = (int) Math.round(100 - (book.getSalePrice() / book.getPrice() * 100));
             tvDiscountPercent.setText("-" + percent + "%");
@@ -167,11 +264,6 @@ public class BookDetailActivity extends AppCompatActivity {
         tvStockStatus.setText(inStock ? "Còn hàng" : "Hết hàng");
         btnBuyNow.setEnabled(inStock);
         ibAddToCartIcon.setEnabled(inStock);
-
-        // Tên tác giả / danh mục cần join thêm từ collection "authors" / "categories"
-        // qua book.getAuthorIds() / book.getCategoryIds() - lược bớt ở đây.
-        tvAuthor.setText("");
-        tvCategoryTag.setText("");
     }
 
     private void addToCart() {

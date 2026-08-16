@@ -232,6 +232,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:hint="Ghi chú cho người bán (tùy chọn)"
+                app:hintTextColor="@color/text_primary"
+                android:textColorHint="@color/text_hint"
                 app:boxCornerRadiusTopStart="12dp"
                 app:boxCornerRadiusTopEnd="12dp"
                 app:boxCornerRadiusBottomStart="12dp"

@@ -74,9 +74,12 @@ public class CheckoutActivity extends AppCompatActivity {
     private final ActivityResultLauncher<Intent> selectVoucherLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                    String code = result.getData()
-                            .getStringExtra(SelectVoucherActivity.EXTRA_SELECTED_VOUCHER_CODE);
-                    if (code != null) viewModel.loadVoucherByCode(code);
+                    Voucher voucher = result.getData()
+                            .getParcelableExtra(SelectVoucherActivity.EXTRA_SELECTED_VOUCHER);
+                    if (voucher != null) {
+                        // Set trực tiếp vào LiveData — KHÔNG cần query Firestore lại
+                        viewModel.setSelectedVoucher(voucher);
+                    }
                 }
             });
 
@@ -109,19 +112,34 @@ public class CheckoutActivity extends AppCompatActivity {
             if (address != null) {
                 tvAddressNamePhone.setText(address.getName() + "  |  " + address.getPhone());
                 tvAddressDetail.setText(address.getFullAddress());
+            } else {
+                tvAddressNamePhone.setText("Chọn địa chỉ giao hàng");
+                tvAddressDetail.setText("Nhấn vào đây để thêm hoặc chọn địa chỉ nhận hàng");
             }
         });
 
         viewModel.getSelectedVoucher().observe(this, voucher -> {
             currentSelectedVoucher = voucher;
             if (voucher != null) {
-                tvVoucherStatus.setText("Đã áp dụng mã " + voucher.getCode());
-                if (Constants.VOUCHER_FREESHIP.equals(voucher.getType())) {
+                String desc = "";
+                if (Constants.VOUCHER_PERCENT.equals(voucher.getKind())) {
+                    desc = " (Giảm " + (int) voucher.getValue() + "%)";
+                } else if (Constants.VOUCHER_FIXED.equals(voucher.getKind())) {
+                    desc = " (Giảm " + (int) voucher.getValue() + "đ)";
+                } else if (Constants.VOUCHER_FREESHIP.equals(voucher.getKind())) {
+                    desc = " (Miễn phí vận chuyển)";
+                }
+                tvVoucherStatus.setText("Đã áp dụng mã " + voucher.getCode() + desc);
+                if (Constants.VOUCHER_FREESHIP.equals(voucher.getKind())) {
                     shippingFee = 0;
+                } else {
+                    shippingFee = DEFAULT_SHIPPING_FEE;
                 }
                 recalculateTotal();
             } else {
+                shippingFee = DEFAULT_SHIPPING_FEE;
                 tvVoucherStatus.setText("Chọn hoặc nhập mã giảm giá");
+                recalculateTotal();
             }
         });
 
@@ -139,12 +157,15 @@ public class CheckoutActivity extends AppCompatActivity {
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null) {
                 btnPlaceOrder.setEnabled(true);
-                Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Đặt hàng thất bại, vui lòng thử lại", Toast.LENGTH_SHORT).show();
             }
         });
 
         String uid = FirebaseUtils.getCurrentUserId();
-        if (uid != null) viewModel.loadCheckoutItems(uid, selectedBookIds);
+        if (uid != null) {
+            viewModel.loadCheckoutItems(uid, selectedBookIds);
+            viewModel.loadDefaultAddress(uid);
+        }
     }
 
     private void bindViews() {
