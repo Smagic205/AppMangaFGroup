@@ -7,9 +7,7 @@
     android:background="@color/background"
     android:orientation="vertical">
 
-    <include
-        android:id="@+id/toolbar_include"
-        layout="@layout/admin_toolbar_admin" />
+    <include layout="@layout/admin_toolbar_admin" />
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"

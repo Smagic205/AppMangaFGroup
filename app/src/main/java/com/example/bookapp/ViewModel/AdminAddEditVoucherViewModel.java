@@ -27,8 +27,33 @@ public class AdminAddEditVoucherViewModel extends ViewModel {
 
     private final AdminVoucherRepository repository = new AdminVoucherRepository();
 
+    private final MutableLiveData<Voucher> loadedVoucher = new MutableLiveData<>();
     private final MutableLiveData<Boolean> saveSuccess = new MutableLiveData<>();
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+
+    public LiveData<Voucher> getLoadedVoucher() {
+        return loadedVoucher;
+    }
+
+    /** Gọi ở onCreate() nếu Intent có EXTRA_VOUCHER_ID (chế độ Sửa). */
+    public void loadVoucherForEdit(String voucherId) {
+        repository.getVoucherById(voucherId).observeForever(loadedVoucher::setValue);
+    }
+
+    /** Nút xóa trên iv_toolbar_action (chỉ hiện khi đang Sửa) — dùng chung repository đã có sẵn trong ViewModel này. */
+    public void deleteVoucher(String voucherId) {
+        repository.deleteVoucher(voucherId, new FirebaseCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                saveSuccess.setValue(true);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                errorMessage.setValue(e.getMessage());
+            }
+        });
+    }
 
     public LiveData<Boolean> getSaveSuccess() {
         return saveSuccess;

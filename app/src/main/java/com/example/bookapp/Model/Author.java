@@ -5,6 +5,7 @@ package com.example.bookapp.Model;
  */
 public class Author {
 
+    @com.google.firebase.firestore.DocumentId
     private String authorId;
     private String name;
     private String avatarUrl;

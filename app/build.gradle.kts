@@ -70,4 +70,6 @@ dependencies {
 // Glide compiler cho annotation
     annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
 
+// xử lí up up ảnh
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

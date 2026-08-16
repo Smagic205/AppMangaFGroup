@@ -119,6 +119,21 @@ public class AdminOrderRepository {
         return result;
     }
 
+    /**
+     * Trả về NGUYÊN danh sách đơn đã giao trong khoảng thời gian (không chỉ tổng tiền) —
+     * dùng cho StatisticActivity cần tính CẢ doanh thu, số đơn, giá trị trung bình/đơn
+     * từ CÙNG 1 lần query, tránh gọi Firestore 3 lần cho 3 con số liên quan tới nhau.
+     */
+    public LiveData<List<Order>> getOrdersInRange(Date fromDate, Date toDate) {
+        MutableLiveData<List<Order>> result = new MutableLiveData<>();
+        ordersRef.whereEqualTo(Constants.FIELD_ORDER_STATUS, Constants.ORDER_DELIVERED)
+                .whereGreaterThanOrEqualTo(Constants.FIELD_CREATED_AT, fromDate)
+                .whereLessThanOrEqualTo(Constants.FIELD_CREATED_AT, toDate)
+                .get()
+                .addOnSuccessListener(snapshots -> result.setValue(snapshots.toObjects(Order.class)));
+        return result;
+    }
+
     /** Đếm tổng số đơn — dùng cho thẻ thống kê "Đơn hàng" trên Dashboard. */
     public LiveData<Integer> countAllOrders() {
         MutableLiveData<Integer> result = new MutableLiveData<>();

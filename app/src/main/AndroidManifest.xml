@@ -105,6 +105,53 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- ===== ADMIN ACTIVITIES ===== -->
+        <activity
+            android:name=".View.admin.AdminDashboardActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".View.admin.AddEditBookActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".View.admin.AddEditVoucherActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".View.admin.AdminOrderDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".View.admin.AdminUserDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".View.admin.ManageAuthorActivity"
+            android:exported="false" />
+        <activity
+            android:name=".View.admin.ManageBookActivity"
+            android:exported="false" />
+        <activity
+            android:name=".View.admin.ManageCategoryActivity"
+            android:exported="false" />
+        <activity
+            android:name=".View.admin.ManageNotificationActivity"
+            android:exported="false" />
+        <activity
+            android:name=".View.admin.ManageOrderActivity"
+            android:exported="false" />
+        <activity
+            android:name=".View.admin.ManagePublisherActivity"
+            android:exported="false" />
+        <activity
+            android:name=".View.admin.ManageUserActivity"
+            android:exported="false" />
+        <activity
+            android:name=".View.admin.ManageVoucherActivity"
+            android:exported="false" />
+        <activity
+            android:name=".View.admin.StatisticActivity"
+            android:exported="false" />
+
     </application>
 
 </manifest>

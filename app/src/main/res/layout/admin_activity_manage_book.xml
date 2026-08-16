@@ -12,9 +12,7 @@
         android:layout_height="wrap_content"
         android:background="@color/primary">
 
-        <include
-            android:id="@+id/toolbar_include"
-            layout="@layout/admin_toolbar_admin" />
+        <include layout="@layout/admin_toolbar_admin" />
 
         <!-- Thanh tìm kiếm nằm trong khối trắng bo góc trên, nối liền nội dung bên dưới -->
         <LinearLayout

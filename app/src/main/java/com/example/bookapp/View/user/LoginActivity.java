@@ -76,7 +76,7 @@ public class LoginActivity extends AppCompatActivity {
         viewModel.getLoginSuccess().observe(this, success -> {
             if (Boolean.TRUE.equals(success)) {
                 setLoading(false);
-                goToHome();
+                navigateByRole();
             }
         });
 
@@ -97,7 +97,7 @@ public class LoginActivity extends AppCompatActivity {
         super.onStart();
         // Nếu đã đăng nhập từ trước (token còn hiệu lực) -> vào thẳng Home
         if (FirebaseUtils.isLoggedIn()) {
-            goToHome();
+            navigateByRole();
         }
     }
 
@@ -129,4 +129,33 @@ public class LoginActivity extends AppCompatActivity {
         pbLogin.setVisibility(loading ? View.VISIBLE : View.GONE);
         btnLogin.setEnabled(!loading);
     }
+
+
+
+    /**
+     * Sau khi xác thực Firebase thành công (login mới HOẶC session cũ còn hiệu lực ở
+     * onStart()), kiểm tra role trước khi quyết định vào HomeActivity (User) hay
+     * AdminDashboardActivity (Admin) — đúng thiết kế "1 project, phân luồng bằng role".
+     *
+     * Dùng RoleChecker.checkRoleSilently() (đã merge từ phía Admin vào RoleChecker.java
+     * trước đó) nên KHÔNG cần sửa LoginViewModel — chỉ cần UID hiện tại sau khi
+     * FirebaseAuth xác thực xong, hàm này tự query Firestore lấy field role.
+     */
+    private void navigateByRole() {
+        com.example.bookapp.Utils.RoleChecker.checkRoleSilently(this, isAdmin -> {
+            if (isAdmin) {
+                goToAdminDashboard();
+            } else {
+                goToHome();
+            }
+        });
+    }
+
+    private void goToAdminDashboard() {
+        Intent intent = new Intent(this, com.example.bookapp.View.admin.AdminDashboardActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
 }

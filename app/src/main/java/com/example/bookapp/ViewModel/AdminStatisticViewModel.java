@@ -30,11 +30,21 @@ public class AdminStatisticViewModel extends ViewModel {
     private final AdminUserRepository userRepository = new AdminUserRepository();
 
     private final MutableLiveData<Double> revenue = new MutableLiveData<>();
+    private final MutableLiveData<Integer> orderCount = new MutableLiveData<>();
+    private final MutableLiveData<Double> averageOrderValue = new MutableLiveData<>();
     private final MediatorLiveData<List<AdminRankItem>> topBooks = new MediatorLiveData<>();
     private final MediatorLiveData<List<AdminRankItem>> topCustomers = new MediatorLiveData<>();
 
     public LiveData<Double> getRevenue() {
         return revenue;
+    }
+
+    public LiveData<Integer> getOrderCount() {
+        return orderCount;
+    }
+
+    public LiveData<Double> getAverageOrderValue() {
+        return averageOrderValue;
     }
 
     public LiveData<List<AdminRankItem>> getTopBooks() {
@@ -45,12 +55,28 @@ public class AdminStatisticViewModel extends ViewModel {
         return topCustomers;
     }
 
-    /** Gọi khi chọn chip Ngày/Tuần/Tháng/Năm — tính khoảng [fromDate, toDate] rồi lấy doanh thu. */
+    /**
+     * Gọi khi chọn chip Ngày/Tuần/Tháng/Năm — tính khoảng [fromDate, toDate] rồi lấy TOÀN
+     * BỘ đơn hàng trong khoảng đó 1 LẦN, tự tính ra cả 3 số liệu (doanh thu, số đơn, giá
+     * trị trung bình/đơn) thay vì gọi Firestore riêng cho từng số — khớp đúng 3 TextView
+     * tv_stat_revenue_value/tv_stat_order_value/tv_stat_aov_value trên StatisticActivity.
+     */
     public void loadRevenue(Period period) {
         Date[] range = calculateDateRange(period);
-        LiveData<Double> source = orderRepository.getRevenueInRange(range[0], range[1]);
-        revenue.setValue(null); // reset để UI hiện loading trong lúc chờ
-        source.observeForever(revenue::setValue);
+        revenue.setValue(null);
+        orderCount.setValue(null);
+        averageOrderValue.setValue(null);
+
+        orderRepository.getOrdersInRange(range[0], range[1]).observeForever(orders -> {
+            if (orders == null) return;
+            double total = 0;
+            for (Order o : orders) total += o.getFinalTotal();
+            int count = orders.size();
+
+            revenue.setValue(total);
+            orderCount.setValue(count);
+            averageOrderValue.setValue(count > 0 ? total / count : 0);
+        });
     }
 
     private Date[] calculateDateRange(Period period) {

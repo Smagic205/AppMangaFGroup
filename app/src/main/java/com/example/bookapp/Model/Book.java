@@ -7,6 +7,7 @@ import java.util.List;
  */
 public class Book {
 
+    @com.google.firebase.firestore.DocumentId
     private String bookId;
     private String title;
     private String slug;

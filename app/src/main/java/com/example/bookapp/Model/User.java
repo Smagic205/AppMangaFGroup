@@ -97,6 +97,7 @@ public class User {
         this.birthday = birthday;
     }
 
+    @com.google.firebase.firestore.Exclude
     public boolean isAdmin() {
         return "admin".equalsIgnoreCase(role);
     }

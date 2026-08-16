@@ -24,6 +24,14 @@ public class AdminVoucherRepository {
         return new FirestoreListLiveData<>(vouchersRef, Voucher.class);
     }
 
+    /** Lấy 1 lần — dùng khi mở AddEditVoucherActivity ở chế độ Sửa. */
+    public LiveData<Voucher> getVoucherById(String voucherId) {
+        androidx.lifecycle.MutableLiveData<Voucher> result = new androidx.lifecycle.MutableLiveData<>();
+        vouchersRef.document(voucherId).get()
+                .addOnSuccessListener(doc -> result.setValue(doc.toObject(Voucher.class)));
+        return result;
+    }
+
     public void addVoucher(@NonNull Voucher voucher, FirebaseCallback<Void> callback) {
         DocumentReference docRef = vouchersRef.document();
         voucher.setVoucherId(docRef.getId());

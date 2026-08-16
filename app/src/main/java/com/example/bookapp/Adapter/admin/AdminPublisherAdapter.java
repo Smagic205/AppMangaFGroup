@@ -72,7 +72,7 @@ public class AdminPublisherAdapter extends RecyclerView.Adapter<AdminPublisherAd
 
         PublisherViewHolder(@NonNull View itemView) {
             super(itemView);
-            ivAvatar = itemView.findViewById(R.id.iv_detail_avatar);
+            ivAvatar = itemView.findViewById(R.id.iv_entity_avatar);
             tvName = itemView.findViewById(R.id.tv_entity_name);
             tvSubtitle = itemView.findViewById(R.id.tv_entity_subtitle);
             ivEdit = itemView.findViewById(R.id.iv_entity_edit);

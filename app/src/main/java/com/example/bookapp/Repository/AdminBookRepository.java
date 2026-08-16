@@ -27,8 +27,7 @@ public class AdminBookRepository {
      * tự quản lý ListenerRegistration nữa.
      */
     public LiveData<List<Book>> observeAllBooks() {
-        Query query = booksRef.orderBy(Constants.FIELD_CREATED_AT, Query.Direction.DESCENDING);
-        return new FirestoreListLiveData<>(query, Book.class);
+        return new FirestoreListLiveData<>(booksRef, Book.class);
     }
 
     /** Lấy 1 lần (không realtime) — dùng khi mở AddEditBookActivity ở chế độ Sửa. */

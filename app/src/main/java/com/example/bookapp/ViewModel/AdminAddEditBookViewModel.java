@@ -68,6 +68,21 @@ public class AdminAddEditBookViewModel extends ViewModel {
         bookRepository.getBookById(bookId).observeForever(loadedBook::setValue);
     }
 
+    /** Nút "Xóa" (chỉ hiện khi đang ở chế độ Sửa) — dùng chung logic xóa mềm với AdminBookViewModel. */
+    public void deleteBook(String bookId) {
+        bookRepository.softDeleteBook(bookId, new FirebaseCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                saveSuccess.setValue(true);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                errorMessage.setValue(e.getMessage());
+            }
+        });
+    }
+
     /**
      * bookId null = Thêm mới, khác null = Sửa. coverImageUrl phải upload xong trước khi
      * gọi hàm này (Activity gọi ImageUtils.uploadImage() trước, lấy url rồi mới gọi save).

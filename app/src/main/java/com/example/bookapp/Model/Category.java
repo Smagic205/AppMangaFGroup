@@ -5,6 +5,7 @@ package com.example.bookapp.Model;
  */
 public class Category {
 
+    @com.google.firebase.firestore.DocumentId
     private String categoryId;
     private String name;
     private String imageUrl;

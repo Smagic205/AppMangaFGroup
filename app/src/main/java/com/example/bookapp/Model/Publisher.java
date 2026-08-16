@@ -5,6 +5,7 @@ package com.example.bookapp.Model;
  */
 public class Publisher {
 
+    @com.google.firebase.firestore.DocumentId
     private String publisherId;
     private String name;
     private String logoUrl;
