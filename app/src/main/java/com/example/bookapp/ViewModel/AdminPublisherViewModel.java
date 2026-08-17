@@ -65,6 +65,17 @@ public class AdminPublisherViewModel extends ViewModel {
             errorMessage.setValue("Vui lòng nhập tên nhà xuất bản");
             return;
         }
+        
+        String trimmedName = name.trim();
+        for (Publisher p : cachedList) {
+            if (p.getName().equalsIgnoreCase(trimmedName)) {
+                if (publisherId == null || !p.getPublisherId().equals(publisherId)) {
+                    errorMessage.setValue("Tên nhà xuất bản đã tồn tại");
+                    return;
+                }
+            }
+        }
+        
         Publisher publisher = new Publisher();
         publisher.setPublisherId(publisherId);
         publisher.setName(name.trim());

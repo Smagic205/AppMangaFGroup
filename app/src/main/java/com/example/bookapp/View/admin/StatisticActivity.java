@@ -13,6 +13,15 @@ import com.example.bookapp.Utils.PriceFormatter;
 import com.example.bookapp.ViewModel.AdminStatisticViewModel;
 import com.google.android.material.chip.ChipGroup;
 
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
+import com.github.mikephil.charting.formatter.ValueFormatter;
+import androidx.core.content.ContextCompat;
+
 public class StatisticActivity extends AdminBaseActivity {
 
     private AdminStatisticViewModel viewModel;
@@ -20,6 +29,7 @@ public class StatisticActivity extends AdminBaseActivity {
     private AdminStatRankAdapter topCustomersAdapter;
 
     private android.widget.TextView tvRevenue, tvOrderCount, tvAov;
+    private LineChart lineChart;
 
     @Override
     protected void onAdminAccessGranted(@Nullable Bundle savedInstanceState) {
@@ -29,6 +39,7 @@ public class StatisticActivity extends AdminBaseActivity {
 
         setupToolbar(findViewById(R.id.tb_toolbar), "Thống kê chi tiết");
         bindSummaryViews();
+        setupLineChart();
         setupPeriodChips();
         setupRecyclerViews();
         observeViewModel();
@@ -44,6 +55,28 @@ public class StatisticActivity extends AdminBaseActivity {
         tvRevenue = findViewById(R.id.tv_stat_revenue_value);
         tvOrderCount = findViewById(R.id.tv_stat_order_value);
         tvAov = findViewById(R.id.tv_stat_aov_value);
+    }
+
+    private void setupLineChart() {
+        lineChart = findViewById(R.id.chart_statistic_revenue);
+        lineChart.getDescription().setEnabled(false);
+        lineChart.setDrawGridBackground(false);
+        lineChart.getLegend().setEnabled(false);
+        lineChart.setExtraBottomOffset(10f);
+
+        XAxis xAxis = lineChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setDrawGridLines(false);
+        xAxis.setGranularity(1f);
+        xAxis.setAxisLineColor(ContextCompat.getColor(this, R.color.divider));
+        xAxis.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
+
+        lineChart.getAxisLeft().setDrawGridLines(true);
+        lineChart.getAxisLeft().setGridColor(ContextCompat.getColor(this, R.color.divider));
+        lineChart.getAxisLeft().setAxisLineColor(ContextCompat.getColor(this, android.R.color.transparent));
+        lineChart.getAxisLeft().setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
+        lineChart.getAxisLeft().setAxisMinimum(0f);
+        lineChart.getAxisRight().setEnabled(false);
     }
 
     private void setupPeriodChips() {
@@ -91,10 +124,42 @@ public class StatisticActivity extends AdminBaseActivity {
         viewModel.getTopBooks().observe(this, topBooksAdapter::setItems);
         viewModel.getTopCustomers().observe(this, topCustomersAdapter::setItems);
 
-        // TODO: chart_statistic_revenue (MPAndroidChart LineChart) cần dữ liệu doanh thu
-        // TỪNG NGÀY trong kỳ đã chọn để vẽ đường biểu diễn xu hướng — AdminStatisticViewModel
-        // hiện chỉ tính TỔNG cả kỳ (1 con số), chưa breakdown theo ngày. Muốn vẽ chart thật,
-        // cần thêm 1 hàm ở AdminOrderRepository nhóm đơn hàng theo ngày trong khoảng thời
-        // gian rồi trả về List<Entry>, xem đây là việc làm tiếp theo khi có nhu cầu.
+        viewModel.getChartRevenue().observe(this, result -> {
+            if (result != null && !result.getEntries().isEmpty()) {
+                LineDataSet dataSet = new LineDataSet(result.getEntries(), "Doanh thu");
+                
+                int color = ContextCompat.getColor(this, R.color.primary);
+                dataSet.setColor(color);
+                dataSet.setCircleColor(color);
+                dataSet.setLineWidth(2f);
+                dataSet.setCircleRadius(4f);
+                dataSet.setDrawCircleHole(true);
+                dataSet.setDrawFilled(true);
+                
+                // Gradient fill under the line
+                dataSet.setFillDrawable(ContextCompat.getDrawable(this, R.drawable.bg_gradient_header));
+                
+                dataSet.setValueTextColor(ContextCompat.getColor(this, R.color.text_secondary));
+                dataSet.setValueTextSize(10f);
+                dataSet.setValueFormatter(new ValueFormatter() {
+                    @Override
+                    public String getFormattedValue(float value) {
+                        if (value == 0) return "";
+                        if (value >= 1000000) return String.format(java.util.Locale.US, "%.1fM", value / 1000000);
+                        if (value >= 1000) return String.format(java.util.Locale.US, "%.0fK", value / 1000);
+                        return String.valueOf((int) value);
+                    }
+                });
+
+                LineData data = new LineData(dataSet);
+                lineChart.setData(data);
+                lineChart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(result.getLabels()));
+                
+                lineChart.animateX(800);
+                lineChart.invalidate();
+            } else {
+                lineChart.clear();
+            }
+        });
     }
 }

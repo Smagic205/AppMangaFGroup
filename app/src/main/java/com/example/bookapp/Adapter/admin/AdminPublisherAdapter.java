@@ -50,8 +50,8 @@ public class AdminPublisherAdapter extends RecyclerView.Adapter<AdminPublisherAd
         Publisher publisher = publishers.get(position);
 
         holder.tvName.setText(publisher.getName());
-        holder.tvSubtitle.setText("Nhà xuất bản");
-        ImageUtils.loadImage(holder.ivAvatar, publisher.getLogoUrl());
+        holder.tvSubtitle.setVisibility(View.GONE);
+        ImageUtils.loadImage(holder.ivAvatar, publisher.getLogoUrl(), R.drawable.ic_publisher);
 
         holder.ivEdit.setOnClickListener(v -> {
             if (listener != null) listener.onEditClick(publisher);

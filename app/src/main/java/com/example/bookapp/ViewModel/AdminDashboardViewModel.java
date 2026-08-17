@@ -17,21 +17,56 @@ import com.example.bookapp.Utils.PriceFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-/** Dùng cho AdminDashboardActivity — trang chủ tổng quan. */
+import com.example.bookapp.Model.OrderItem;
+import com.example.bookapp.Utils.Constants;
+import com.example.bookapp.Utils.FirebaseCallback;
+import com.example.bookapp.Utils.FirebaseUtils;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.WriteBatch;
+
 public class AdminDashboardViewModel extends ViewModel {
+
+    public enum Period {WEEK, MONTH, YEAR}
 
     private final AdminBookRepository bookRepository = new AdminBookRepository();
     private final AdminOrderRepository orderRepository = new AdminOrderRepository();
     private final AdminUserRepository userRepository = new AdminUserRepository();
 
+    public static class ChartResult {
+        private final double totalRevenue;
+        private final List<com.github.mikephil.charting.data.BarEntry> entries;
+        private final List<String> labels;
+
+        public ChartResult(double totalRevenue, List<com.github.mikephil.charting.data.BarEntry> entries, List<String> labels) {
+            this.totalRevenue = totalRevenue;
+            this.entries = entries;
+            this.labels = labels;
+        }
+
+        public double getTotalRevenue() { return totalRevenue; }
+        public List<com.github.mikephil.charting.data.BarEntry> getEntries() { return entries; }
+        public List<String> getLabels() { return labels; }
+    }
+
     private final MediatorLiveData<List<AdminDashboardStat>> statCards = new MediatorLiveData<>();
+    private final MediatorLiveData<ChartResult> chartRevenue = new MediatorLiveData<>();
     private Integer bookCount, orderCount, userCount;
     private Double revenueThisWeek;
 
+    private LiveData<List<Order>> currentChartOrdersLiveData;
+    private androidx.lifecycle.Observer<List<Order>> currentChartOrdersObserver;
+
     public LiveData<List<AdminDashboardStat>> getStatCards() {
         return statCards;
+    }
+
+    public LiveData<ChartResult> getChartRevenue() {
+        return chartRevenue;
     }
 
     public LiveData<List<Order>> getRecentOrders() {
@@ -50,7 +85,8 @@ public class AdminDashboardViewModel extends ViewModel {
     public void loadStats() {
         Calendar cal = Calendar.getInstance();
         Date toDate = cal.getTime();
-        cal.set(Calendar.DAY_OF_WEEK, cal.getFirstDayOfWeek());
+        // Set to Monday of the current week
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
         Date fromDate = cal.getTime();
 
         statCards.addSource(orderRepository.getRevenueInRange(fromDate, toDate), value -> {
@@ -104,5 +140,139 @@ public class AdminDashboardViewModel extends ViewModel {
         items.add(new AdminDashboardMenuItem(R.drawable.ic_notification, "Thông báo", "manage_notification"));
         items.add(new AdminDashboardMenuItem(R.drawable.ic_statistic, "Thống kê", "statistic"));
         return items;
+    }
+
+    public void loadChartRevenue(Period period) {
+        Date[] range = calculateDateRange(period);
+        chartRevenue.setValue(null);
+
+        if (currentChartOrdersLiveData != null && currentChartOrdersObserver != null) {
+            currentChartOrdersLiveData.removeObserver(currentChartOrdersObserver);
+        }
+
+        currentChartOrdersLiveData = orderRepository.getOrdersInRange(range[0], range[1]);
+        currentChartOrdersObserver = orders -> {
+            if (orders == null) return;
+            double total = 0;
+            List<com.github.mikephil.charting.data.BarEntry> entries = new ArrayList<>();
+            List<String> labels = new ArrayList<>();
+            Calendar cal = Calendar.getInstance();
+
+            if (period == Period.WEEK) {
+                double[] sums = new double[7];
+                String[] dayNames = {"T2", "T3", "T4", "T5", "T6", "T7", "CN"};
+                for (Order o : orders) {
+                    if (o.getCreatedAt() != null) {
+                        total += o.getFinalTotal();
+                        cal.setTime(o.getCreatedAt().toDate());
+                        int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK); // 1=Sun, 2=Mon...
+                        int index = (dayOfWeek + 5) % 7; // Map Mon->0, Sun->6
+                        sums[index] += o.getFinalTotal();
+                    }
+                }
+                for (int i = 0; i < 7; i++) {
+                    entries.add(new com.github.mikephil.charting.data.BarEntry(i, (float) sums[i]));
+                    labels.add(dayNames[i]);
+                }
+            } else if (period == Period.MONTH) {
+                cal.setTime(range[0]);
+                int daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH);
+                double[] sums = new double[daysInMonth];
+                for (Order o : orders) {
+                    if (o.getCreatedAt() != null) {
+                        total += o.getFinalTotal();
+                        cal.setTime(o.getCreatedAt().toDate());
+                        int day = cal.get(Calendar.DAY_OF_MONTH);
+                        sums[day - 1] += o.getFinalTotal();
+                    }
+                }
+                for (int i = 0; i < daysInMonth; i++) {
+                    entries.add(new com.github.mikephil.charting.data.BarEntry(i, (float) sums[i]));
+                    labels.add(String.valueOf(i + 1));
+                }
+            } else if (period == Period.YEAR) {
+                double[] sums = new double[12];
+                for (Order o : orders) {
+                    if (o.getCreatedAt() != null) {
+                        total += o.getFinalTotal();
+                        cal.setTime(o.getCreatedAt().toDate());
+                        int month = cal.get(Calendar.MONTH); // 0-11
+                        sums[month] += o.getFinalTotal();
+                    }
+                }
+                for (int i = 0; i < 12; i++) {
+                    entries.add(new com.github.mikephil.charting.data.BarEntry(i, (float) sums[i]));
+                    labels.add("T" + (i + 1));
+                }
+            }
+
+            chartRevenue.setValue(new ChartResult(total, entries, labels));
+        };
+        currentChartOrdersLiveData.observeForever(currentChartOrdersObserver);
+    }
+
+    private Date[] calculateDateRange(Period period) {
+        Calendar cal = Calendar.getInstance();
+        Date toDate = cal.getTime();
+
+        switch (period) {
+            case WEEK:
+                cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+                break;
+            case MONTH:
+                cal.set(Calendar.DAY_OF_MONTH, 1);
+                break;
+            case YEAR:
+                cal.set(Calendar.DAY_OF_YEAR, 1);
+                break;
+        }
+        return new Date[]{cal.getTime(), toDate};
+    }
+
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        if (currentChartOrdersLiveData != null && currentChartOrdersObserver != null) {
+            currentChartOrdersLiveData.removeObserver(currentChartOrdersObserver);
+        }
+    }
+
+    public void syncHistoricalSoldCount(FirebaseCallback<Void> callback) {
+        FirebaseFirestore db = FirebaseUtils.getFirestore();
+        
+        // 1. Get all DELIVERED orders
+        db.collection(Constants.COLLECTION_ORDERS)
+                .whereEqualTo(Constants.FIELD_ORDER_STATUS, Constants.ORDER_DELIVERED)
+                .get()
+                .addOnSuccessListener(orderSnapshots -> {
+                    
+                    // Map to count sold quantity per book
+                    Map<String, Integer> bookSales = new HashMap<>();
+                    for (QueryDocumentSnapshot orderDoc : orderSnapshots) {
+                        Order order = orderDoc.toObject(Order.class);
+                        if (order.getItems() != null) {
+                            for (OrderItem item : order.getItems()) {
+                                if (item.getBookId() != null) {
+                                    int current = bookSales.getOrDefault(item.getBookId(), 0);
+                                    bookSales.put(item.getBookId(), current + item.getQuantity());
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Reset all books' soldCount to 0, then apply new counts
+                    db.collection(Constants.COLLECTION_BOOKS).get().addOnSuccessListener(bookSnapshots -> {
+                        WriteBatch batch = db.batch();
+                        for (QueryDocumentSnapshot bookDoc : bookSnapshots) {
+                            int actualSales = bookSales.getOrDefault(bookDoc.getId(), 0);
+                            batch.update(bookDoc.getReference(), Constants.FIELD_SOLD_COUNT, actualSales);
+                        }
+                        
+                        batch.commit()
+                                .addOnSuccessListener(unused -> callback.onSuccess(null))
+                                .addOnFailureListener(callback::onFailure);
+                    }).addOnFailureListener(callback::onFailure);
+                    
+                }).addOnFailureListener(callback::onFailure);
     }
 }

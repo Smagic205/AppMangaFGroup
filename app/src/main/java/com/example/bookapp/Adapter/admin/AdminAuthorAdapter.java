@@ -51,7 +51,7 @@ public class AdminAuthorAdapter extends RecyclerView.Adapter<AdminAuthorAdapter.
 
         holder.tvName.setText(author.getName());
         holder.tvSubtitle.setText(author.getBookCount() + " đầu sách");
-        ImageUtils.loadImage(holder.ivAvatar, author.getAvatarUrl());
+        ImageUtils.loadImage(holder.ivAvatar, author.getAvatarUrl(), R.drawable.ic_author);
 
         holder.ivEdit.setOnClickListener(v -> {
             if (listener != null) listener.onEditClick(author);

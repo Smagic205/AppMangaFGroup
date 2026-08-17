@@ -14,8 +14,6 @@
         android:id="@+id/ll_item_user"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:clickable="true"
-        android:focusable="true"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:padding="@dimen/spacing_sm">

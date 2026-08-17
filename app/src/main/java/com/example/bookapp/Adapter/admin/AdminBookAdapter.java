@@ -56,7 +56,7 @@ public class AdminBookAdapter extends RecyclerView.Adapter<AdminBookAdapter.Book
         Book book = books.get(position);
 
         holder.tvTitle.setText(book.getTitle());
-        holder.tvAuthor.setText(book.getAuthorIds().toString()); // tạm hiển thị id thô, xem ghi chú cuối file
+        holder.tvAuthor.setText(book.getAuthorNameDisplay());
         ImageUtils.loadImage(holder.ivCover, book.getCoverImageUrl());
 
         boolean onSale = PriceFormatter.isOnSale(book.getPrice(), book.getSalePrice());

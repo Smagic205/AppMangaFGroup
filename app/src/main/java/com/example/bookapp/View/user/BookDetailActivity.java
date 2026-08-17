@@ -39,7 +39,6 @@ public class BookDetailActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     
     private ImageView ivCover;
-    private ImageView[] quickStars;
     private TextView tvTitle, tvAuthor, tvCategoryTag, tvRating, tvReviewCount, tvSoldCount,
             tvSalePrice, tvOriginalPrice, tvDiscountPercent, tvStockStatus,
             tvDescription, tvExpandDescription, tvSeeAllReviews, tvReviewSectionTitle, tvQuantity;
@@ -147,11 +146,6 @@ public class BookDetailActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progress_bar);
         
         ivCover = findViewById(R.id.iv_cover);
-        quickStars = new ImageView[]{
-                findViewById(R.id.iv_quick_star1), findViewById(R.id.iv_quick_star2),
-                findViewById(R.id.iv_quick_star3), findViewById(R.id.iv_quick_star4),
-                findViewById(R.id.iv_quick_star5)
-        };
         tvTitle = findViewById(R.id.tv_title);
         tvAuthor = findViewById(R.id.tv_author);
         tvCategoryTag = findViewById(R.id.tv_category_tag);
@@ -218,16 +212,6 @@ public class BookDetailActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        View.OnClickListener quickRateClickListener = v -> {
-            Intent intent = new Intent(this, WriteReviewActivity.class);
-            intent.putExtra(WriteReviewActivity.EXTRA_BOOK_ID, bookId);
-            startActivity(intent);
-        };
-        for (ImageView star : quickStars) {
-            if (star != null) {
-                star.setOnClickListener(quickRateClickListener);
-            }
-        }
     }
 
     private void bindBookData(Book book) {

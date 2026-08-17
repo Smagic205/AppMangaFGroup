@@ -74,7 +74,7 @@ public class AdminUserDetailActivity extends AdminBaseActivity {
         if (user == null) return;
         tvName.setText(user.getFullName());
         tvEmail.setText(user.getEmail());
-        ImageUtils.loadAvatar(ivAvatar, user.getAvatarUrl());
+        ImageUtils.loadImage(ivAvatar, user.getAvatarUrl(), R.drawable.ic_user);
 
         // Gỡ listener trước khi setChecked() — tránh switch tự bắn callback với dữ liệu
         // cũ khi Activity mới load xong (đúng lỗi đã tránh ở AdminBookAdapter/AdminVoucherAdapter).

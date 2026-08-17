@@ -41,7 +41,7 @@ public class Constants {
 
     // ===== TÊN FIELD DÙNG TRONG QUERY (orderBy/whereEqualTo/update) — Admin Repository cần =====
     public static final String FIELD_ROLE = "role";
-    public static final String FIELD_IS_ACTIVE = "active";
+    public static final String FIELD_IS_ACTIVE = "isActive";
     public static final String FIELD_IS_FEATURED = "isFeatured";
     public static final String FIELD_ORDER_STATUS = "orderStatus";
     public static final String FIELD_USER_ID = "userId";

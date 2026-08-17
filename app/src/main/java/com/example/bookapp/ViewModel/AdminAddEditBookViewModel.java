@@ -2,7 +2,10 @@ package com.example.bookapp.ViewModel;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.ViewModel;
+
+import com.example.bookapp.Utils.SingleLiveEvent;
 
 import com.example.bookapp.Model.Author;
 import com.example.bookapp.Model.Book;
@@ -30,9 +33,9 @@ public class AdminAddEditBookViewModel extends ViewModel {
     private final LiveData<List<Author>> authors = authorRepository.observeAllAuthors();
     private final LiveData<List<Publisher>> publishers = publisherRepository.observeAllPublishers();
 
-    private final MutableLiveData<Book> loadedBook = new MutableLiveData<>();
-    private final MutableLiveData<Boolean> saveSuccess = new MutableLiveData<>();
-    private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+    private final MediatorLiveData<Book> loadedBook = new MediatorLiveData<>();
+    private final SingleLiveEvent<Boolean> saveSuccess = new SingleLiveEvent<>();
+    private final SingleLiveEvent<String> errorMessage = new SingleLiveEvent<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
 
     public LiveData<List<Category>> getCategories() {
@@ -65,7 +68,12 @@ public class AdminAddEditBookViewModel extends ViewModel {
 
     /** Gọi ở onCreate() nếu Intent có EXTRA_BOOK_ID (chế độ Sửa). */
     public void loadBookForEdit(String bookId) {
-        bookRepository.getBookById(bookId).observeForever(loadedBook::setValue);
+        LiveData<Book> source = bookRepository.getBookById(bookId);
+        loadedBook.addSource(source, book -> {
+            loadedBook.setValue(book);
+            // Ngăn leak và chỉ nhận 1 lần nếu cần
+            loadedBook.removeSource(source);
+        });
     }
 
     /** Nút "Xóa" (chỉ hiện khi đang ở chế độ Sửa) — dùng chung logic xóa mềm với AdminBookViewModel. */
@@ -110,6 +118,10 @@ public class AdminAddEditBookViewModel extends ViewModel {
         }
         if (price <= 0 || stock < 0) {
             errorMessage.setValue("Giá hoặc tồn kho không hợp lệ");
+            return;
+        }
+        if (salePrice > 0 && salePrice >= price) {
+            errorMessage.setValue("Giá sale phải nhỏ hơn giá gốc");
             return;
         }
 

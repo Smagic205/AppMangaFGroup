@@ -67,8 +67,8 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
         } else if (canReview) {
             holder.btnSecondary.setVisibility(View.VISIBLE);
             holder.btnSecondary.setText("Đánh giá");
-            holder.btnSecondary.setTextColor(androidx.core.content.ContextCompat.getColor(holder.itemView.getContext(), R.color.primary));
-            holder.btnSecondary.setBackgroundResource(R.drawable.bg_button_outline);
+            holder.btnSecondary.setTextColor(android.graphics.Color.WHITE);
+            holder.btnSecondary.setBackgroundResource(R.drawable.bg_button_primary);
         } else {
             holder.btnSecondary.setVisibility(View.GONE);
         }

@@ -96,7 +96,8 @@ public class AdminBookRepository {
     /** Top sách bán chạy — lấy 1 lần, dùng cho AdminDashboardActivity và StatisticActivity. */
     public LiveData<List<Book>> getTopSellingBooks(int limit) {
         MutableLiveData<List<Book>> result = new MutableLiveData<>();
-        booksRef.orderBy(Constants.FIELD_SOLD_COUNT, Query.Direction.DESCENDING)
+        booksRef.whereGreaterThan(Constants.FIELD_SOLD_COUNT, 0)
+                .orderBy(Constants.FIELD_SOLD_COUNT, Query.Direction.DESCENDING)
                 .limit(limit)
                 .get()
                 .addOnSuccessListener(snapshots -> result.setValue(snapshots.toObjects(Book.class)));
