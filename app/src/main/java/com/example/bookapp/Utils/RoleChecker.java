@@ -96,7 +96,7 @@ public class RoleChecker {
                                 Toast.makeText(activity, "Debug: user.isAdmin() là false (role hiện tại: " + user.getRole() + ")", Toast.LENGTH_LONG).show();
                                 callback.onResult(false);
                             } else {
-                                Toast.makeText(activity, "Debug: Đăng nhập Admin thành công!", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(activity, "Đăng nhập Admin thành công!", Toast.LENGTH_SHORT).show();
                                 callback.onResult(true);
                             }
                         }
