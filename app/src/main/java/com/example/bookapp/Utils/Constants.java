@@ -52,6 +52,8 @@ public class Constants {
     public static final String FIELD_PRICE = "price";
     public static final String FIELD_TITLE = "title";
     public static final String FIELD_NAME = "name";
+    public static final String FIELD_AUTHOR_IDS = "authorIds";
+    public static final String FIELD_PUBLISHER_ID = "publisherId";
 
     // ===== TRẠNG THÁI THANH TOÁN (orders.paymentStatus) — chưa có trong bản gốc =====
     public static final String PAYMENT_PENDING = "pending";

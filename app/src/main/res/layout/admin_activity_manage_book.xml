@@ -75,6 +75,24 @@
                         android:text="Thể loại"
                         app:chipIcon="@drawable/ic_category"
                         app:chipIconSize="14dp" />
+                        
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_author_filter"
+                        style="@style/Widget.MaterialComponents.Chip.Action"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Tác giả"
+                        app:chipIcon="@drawable/ic_author"
+                        app:chipIconSize="14dp" />
+                        
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_publisher_filter"
+                        style="@style/Widget.MaterialComponents.Chip.Action"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Nhà xuất bản"
+                        app:chipIcon="@drawable/ic_publisher"
+                        app:chipIconSize="14dp" />
                 </com.google.android.material.chip.ChipGroup>
             </HorizontalScrollView>
 

@@ -36,6 +36,8 @@ public class AdminBookViewModel extends ViewModel {
     private SortOption currentSort = SortOption.NEWEST;
     private StockFilter currentStockFilter = StockFilter.ALL;
     private String currentCategoryId = null; // null = không lọc theo thể loại
+    private String currentAuthorId = null; // null = không lọc theo tác giả
+    private String currentPublisherId = null; // null = không lọc theo nxb
 
     private final MutableLiveData<Boolean> actionSuccess = new MutableLiveData<>();
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
@@ -85,6 +87,16 @@ public class AdminBookViewModel extends ViewModel {
         applyFilterSort();
     }
 
+    public void setAuthorFilter(String authorId) {
+        currentAuthorId = authorId;
+        applyFilterSort();
+    }
+
+    public void setPublisherFilter(String publisherId) {
+        currentPublisherId = publisherId;
+        applyFilterSort();
+    }
+
     private void applyFilterSort() {
         List<Book> result = repository.filterByTitle(cachedBookList, currentKeyword);
 
@@ -96,6 +108,26 @@ public class AdminBookViewModel extends ViewModel {
                 }
             }
             result = byCategory;
+        }
+
+        if (currentAuthorId != null) {
+            List<Book> byAuthor = new ArrayList<>();
+            for (Book b : result) {
+                if (b.getAuthorIds() != null && b.getAuthorIds().contains(currentAuthorId)) {
+                    byAuthor.add(b);
+                }
+            }
+            result = byAuthor;
+        }
+
+        if (currentPublisherId != null) {
+            List<Book> byPublisher = new ArrayList<>();
+            for (Book b : result) {
+                if (currentPublisherId.equals(b.getPublisherId())) {
+                    byPublisher.add(b);
+                }
+            }
+            result = byPublisher;
         }
 
         switch (currentStockFilter) {

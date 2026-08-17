@@ -6,6 +6,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.example.bookapp.Model.Category;
+import com.example.bookapp.Repository.AdminBookRepository;
 import com.example.bookapp.Repository.AdminCategoryRepository;
 import com.example.bookapp.Utils.FirebaseCallback;
 
@@ -16,6 +17,7 @@ import java.util.List;
 public class AdminCategoryViewModel extends ViewModel {
 
     private final AdminCategoryRepository repository = new AdminCategoryRepository();
+    private final AdminBookRepository bookRepository = new AdminBookRepository();
 
     private final LiveData<List<Category>> allCategories = repository.observeAllCategories();
     private final MediatorLiveData<List<Category>> displayedCategories = new MediatorLiveData<>();
@@ -85,10 +87,24 @@ public class AdminCategoryViewModel extends ViewModel {
     }
 
     public void deleteCategory(String categoryId) {
-        repository.deleteCategory(categoryId, new FirebaseCallback<Void>() {
+        bookRepository.checkCategoryInUse(categoryId, new FirebaseCallback<Boolean>() {
             @Override
-            public void onSuccess(Void result) {
-                saveSuccess.setValue(true);
+            public void onSuccess(Boolean inUse) {
+                if (inUse) {
+                    errorMessage.setValue("Không thể xóa vì đang có sản phẩm thuộc Thể loại này.");
+                } else {
+                    repository.deleteCategory(categoryId, new FirebaseCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            saveSuccess.setValue(true);
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            errorMessage.setValue(e.getMessage());
+                        }
+                    });
+                }
             }
 
             @Override

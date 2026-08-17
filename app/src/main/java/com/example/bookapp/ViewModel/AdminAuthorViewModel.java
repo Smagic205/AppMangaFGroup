@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel;
 
 import com.example.bookapp.Model.Author;
 import com.example.bookapp.Repository.AdminAuthorRepository;
+import com.example.bookapp.Repository.AdminBookRepository;
 import com.example.bookapp.Utils.FirebaseCallback;
 
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.List;
 public class AdminAuthorViewModel extends ViewModel {
 
     private final AdminAuthorRepository repository = new AdminAuthorRepository();
+    private final AdminBookRepository bookRepository = new AdminBookRepository();
 
     private final LiveData<List<Author>> allAuthors = repository.observeAllAuthors();
     private final MediatorLiveData<List<Author>> displayedAuthors = new MediatorLiveData<>();
@@ -96,10 +98,24 @@ public class AdminAuthorViewModel extends ViewModel {
     }
 
     public void deleteAuthor(String authorId) {
-        repository.deleteAuthor(authorId, new FirebaseCallback<Void>() {
+        bookRepository.checkAuthorInUse(authorId, new FirebaseCallback<Boolean>() {
             @Override
-            public void onSuccess(Void result) {
-                saveSuccess.setValue(true);
+            public void onSuccess(Boolean inUse) {
+                if (inUse) {
+                    errorMessage.setValue("Không thể xóa vì đang có sản phẩm thuộc Tác giả này.");
+                } else {
+                    repository.deleteAuthor(authorId, new FirebaseCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            saveSuccess.setValue(true);
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            errorMessage.setValue(e.getMessage());
+                        }
+                    });
+                }
             }
 
             @Override

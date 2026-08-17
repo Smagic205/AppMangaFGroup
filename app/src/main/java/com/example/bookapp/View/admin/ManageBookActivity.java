@@ -19,9 +19,14 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.example.bookapp.Adapter.admin.AdminBookAdapter;
+import com.example.bookapp.Model.Author;
 import com.example.bookapp.Model.Book;
+import com.example.bookapp.Model.Category;
+import com.example.bookapp.Model.Publisher;
 import com.example.bookapp.R;
+import com.example.bookapp.Repository.AdminAuthorRepository;
 import com.example.bookapp.Repository.AdminCategoryRepository;
+import com.example.bookapp.Repository.AdminPublisherRepository;
 import com.example.bookapp.Utils.Constants;
 import com.example.bookapp.ViewModel.AdminBookViewModel;
 import com.google.android.material.chip.Chip;
@@ -37,6 +42,12 @@ public class ManageBookActivity extends AdminBaseActivity {
     private View emptyState;
     private TextView tvResultCount;
     private final AdminCategoryRepository categoryRepository = new AdminCategoryRepository();
+    private final AdminAuthorRepository authorRepository = new AdminAuthorRepository();
+    private final AdminPublisherRepository publisherRepository = new AdminPublisherRepository();
+
+    private List<Category> cachedCategories;
+    private List<Author> cachedAuthors;
+    private List<Publisher> cachedPublishers;
 
     @Override
     protected void onAdminAccessGranted(@Nullable Bundle savedInstanceState) {
@@ -58,6 +69,10 @@ public class ManageBookActivity extends AdminBaseActivity {
 
         viewModel.getDisplayedBooks().observe(this, this::onBooksChanged);
         viewModel.getErrorMessage().observe(this, this::showError);
+
+        categoryRepository.observeAllCategories().observe(this, list -> cachedCategories = list);
+        authorRepository.observeAllAuthors().observe(this, list -> cachedAuthors = list);
+        publisherRepository.observeAllPublishers().observe(this, list -> cachedPublishers = list);
     }
 
     private void setupSearchBar() {
@@ -127,27 +142,70 @@ public class ManageBookActivity extends AdminBaseActivity {
         });
 
         Chip chipCategory = findViewById(R.id.chip_category_filter);
-        chipCategory.setOnClickListener(v -> showCategoryFilterDialog());
+        chipCategory.setOnClickListener(v -> showCategoryFilterMenu(v));
+
+        Chip chipAuthor = findViewById(R.id.chip_author_filter);
+        chipAuthor.setOnClickListener(v -> showAuthorFilterMenu(v));
+
+        Chip chipPublisher = findViewById(R.id.chip_publisher_filter);
+        chipPublisher.setOnClickListener(v -> showPublisherFilterMenu(v));
     }
 
-    private void showCategoryFilterDialog() {
-        categoryRepository.observeAllCategories().observe(this, categories -> {
-            if (categories == null || categories.isEmpty()) return;
-            CharSequence[] names = new CharSequence[categories.size() + 1];
-            names[0] = "Tất cả thể loại";
-            for (int i = 0; i < categories.size(); i++) names[i + 1] = categories.get(i).getName();
-
-            new androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("Lọc theo thể loại")
-                    .setItems(names, (dialog, which) -> {
-                        if (which == 0) {
-                            viewModel.setCategoryFilter(null);
-                        } else {
-                            viewModel.setCategoryFilter(categories.get(which - 1).getCategoryId());
-                        }
-                    })
-                    .show();
+    private void showCategoryFilterMenu(View anchor) {
+        if (cachedCategories == null || cachedCategories.isEmpty()) return;
+        PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add(0, 0, 0, "Tất cả thể loại");
+        for (int i = 0; i < cachedCategories.size(); i++) {
+            menu.getMenu().add(0, i + 1, i + 1, cachedCategories.get(i).getName());
+        }
+        menu.setOnMenuItemClickListener(item -> {
+            int which = item.getItemId();
+            if (which == 0) {
+                viewModel.setCategoryFilter(null);
+            } else {
+                viewModel.setCategoryFilter(cachedCategories.get(which - 1).getCategoryId());
+            }
+            return true;
         });
+        menu.show();
+    }
+
+    private void showAuthorFilterMenu(View anchor) {
+        if (cachedAuthors == null || cachedAuthors.isEmpty()) return;
+        PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add(0, 0, 0, "Tất cả tác giả");
+        for (int i = 0; i < cachedAuthors.size(); i++) {
+            menu.getMenu().add(0, i + 1, i + 1, cachedAuthors.get(i).getName());
+        }
+        menu.setOnMenuItemClickListener(item -> {
+            int which = item.getItemId();
+            if (which == 0) {
+                viewModel.setAuthorFilter(null);
+            } else {
+                viewModel.setAuthorFilter(cachedAuthors.get(which - 1).getAuthorId());
+            }
+            return true;
+        });
+        menu.show();
+    }
+
+    private void showPublisherFilterMenu(View anchor) {
+        if (cachedPublishers == null || cachedPublishers.isEmpty()) return;
+        PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add(0, 0, 0, "Tất cả NXB");
+        for (int i = 0; i < cachedPublishers.size(); i++) {
+            menu.getMenu().add(0, i + 1, i + 1, cachedPublishers.get(i).getName());
+        }
+        menu.setOnMenuItemClickListener(item -> {
+            int which = item.getItemId();
+            if (which == 0) {
+                viewModel.setPublisherFilter(null);
+            } else {
+                viewModel.setPublisherFilter(cachedPublishers.get(which - 1).getPublisherId());
+            }
+            return true;
+        });
+        menu.show();
     }
 
     private void setupRecyclerView() {
