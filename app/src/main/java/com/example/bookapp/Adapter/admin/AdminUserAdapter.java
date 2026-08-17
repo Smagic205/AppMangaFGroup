@@ -50,7 +50,7 @@ public class AdminUserAdapter extends RecyclerView.Adapter<AdminUserAdapter.User
 
         holder.tvName.setText(user.getFullName());
         holder.tvEmail.setText(user.getEmail());
-        ImageUtils.loadAvatar(holder.ivAvatar, user.getAvatarUrl());
+        ImageUtils.loadImage(holder.ivAvatar, user.getAvatarUrl(), R.drawable.ic_user);
 
         boolean isAdmin = Constants.ROLE_ADMIN.equalsIgnoreCase(user.getRole());
         holder.tvRoleBadge.setVisibility(isAdmin ? View.VISIBLE : View.GONE);

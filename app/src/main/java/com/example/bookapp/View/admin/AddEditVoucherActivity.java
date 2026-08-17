@@ -62,14 +62,24 @@ public class AddEditVoucherActivity extends AdminBaseActivity {
         etEndDate = findViewById(R.id.et_voucher_end_date);
         cgType = findViewById(R.id.cg_voucher_type);
         swActive = findViewById(R.id.sw_voucher_active_form);
+
+        cgType.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.isEmpty()) return;
+            int checkedId = checkedIds.get(0);
+            if (checkedId == R.id.chip_type_freeship) {
+                etValue.setText("30000");
+                etValue.setEnabled(false);
+            } else {
+                etValue.setEnabled(true);
+            }
+        });
     }
 
-    /** Nút xóa dùng lại iv_toolbar_action sẵn có trong toolbar_admin.xml (mặc định ẩn). */
+    /** Nút xóa dùng ở thanh công cụ bên dưới. */
     private void setupDeleteAction() {
-        ImageView ivAction = findViewById(R.id.iv_toolbar_action);
-        ivAction.setImageResource(R.drawable.ic_delete);
-        ivAction.setVisibility(View.VISIBLE);
-        ivAction.setOnClickListener(v -> confirmDelete());
+        View btnDelete = findViewById(R.id.btn_delete_voucher);
+        btnDelete.setVisibility(View.VISIBLE);
+        btnDelete.setOnClickListener(v -> confirmDelete());
     }
 
     private void confirmDelete() {
@@ -153,7 +163,7 @@ public class AddEditVoucherActivity extends AdminBaseActivity {
             type = Constants.VOUCHER_FIXED;
         } else if (checkedId == R.id.chip_type_freeship) {
             type = Constants.VOUCHER_FREESHIP;
-            value = 0; // freeship không cần nhập giá trị số
+            value = 30000; // Miễn phí ship luôn giảm 30.000 đ
         } else {
             type = Constants.VOUCHER_PERCENT;
         }

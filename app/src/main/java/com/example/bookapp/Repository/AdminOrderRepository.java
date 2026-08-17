@@ -9,8 +9,13 @@ import com.example.bookapp.Utils.Constants;
 import com.example.bookapp.Utils.FirebaseCallback;
 import com.example.bookapp.Utils.FirebaseUtils;
 import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.WriteBatch;
 
+import com.example.bookapp.Model.OrderItem;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -62,9 +67,37 @@ public class AdminOrderRepository {
      * này thành công, giữ mỗi Repository chỉ lo đúng 1 bảng.
      */
     public void updateOrderStatus(String orderId, String newStatus, FirebaseCallback<Void> callback) {
-        ordersRef.document(orderId).update(Constants.FIELD_ORDER_STATUS, newStatus)
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(callback::onFailure);
+        if (Constants.ORDER_DELIVERED.equals(newStatus)) {
+            ordersRef.document(orderId).get().addOnSuccessListener(doc -> {
+                Order order = doc.toObject(Order.class);
+                if (order != null && order.getItems() != null && !Constants.ORDER_DELIVERED.equals(order.getOrderStatus())) {
+                    FirebaseFirestore db = FirebaseUtils.getFirestore();
+                    WriteBatch batch = db.batch();
+                    
+                    batch.update(ordersRef.document(orderId), Constants.FIELD_ORDER_STATUS, newStatus);
+                    
+                    CollectionReference booksRef = db.collection(Constants.COLLECTION_BOOKS);
+                    for (OrderItem item : order.getItems()) {
+                        if (item.getBookId() != null) {
+                            DocumentReference bookRef = booksRef.document(item.getBookId());
+                            batch.update(bookRef, Constants.FIELD_SOLD_COUNT, FieldValue.increment(item.getQuantity()));
+                        }
+                    }
+                    
+                    batch.commit()
+                            .addOnSuccessListener(unused -> callback.onSuccess(null))
+                            .addOnFailureListener(callback::onFailure);
+                } else {
+                    ordersRef.document(orderId).update(Constants.FIELD_ORDER_STATUS, newStatus)
+                            .addOnSuccessListener(unused -> callback.onSuccess(null))
+                            .addOnFailureListener(callback::onFailure);
+                }
+            }).addOnFailureListener(callback::onFailure);
+        } else {
+            ordersRef.document(orderId).update(Constants.FIELD_ORDER_STATUS, newStatus)
+                    .addOnSuccessListener(unused -> callback.onSuccess(null))
+                    .addOnFailureListener(callback::onFailure);
+        }
     }
 
     /** Hủy đơn — tách riêng hàm cho rõ ý nghĩa nghiệp vụ dù dùng chung logic updateOrderStatus. */
@@ -105,17 +138,19 @@ public class AdminOrderRepository {
      */
     public LiveData<Double> getRevenueInRange(Date fromDate, Date toDate) {
         MutableLiveData<Double> result = new MutableLiveData<>();
-        ordersRef.whereEqualTo(Constants.FIELD_ORDER_STATUS, Constants.ORDER_DELIVERED)
-                .whereGreaterThanOrEqualTo(Constants.FIELD_CREATED_AT, fromDate)
+        ordersRef.whereGreaterThanOrEqualTo(Constants.FIELD_CREATED_AT, fromDate)
                 .whereLessThanOrEqualTo(Constants.FIELD_CREATED_AT, toDate)
                 .get()
                 .addOnSuccessListener(snapshots -> {
                     double total = 0;
                     for (Order order : snapshots.toObjects(Order.class)) {
-                        total += order.getFinalTotal();
+                        if (Constants.ORDER_DELIVERED.equals(order.getOrderStatus())) {
+                            total += order.getFinalTotal();
+                        }
                     }
                     result.setValue(total);
-                });
+                })
+                .addOnFailureListener(e -> result.setValue(0.0));
         return result;
     }
 
@@ -126,11 +161,19 @@ public class AdminOrderRepository {
      */
     public LiveData<List<Order>> getOrdersInRange(Date fromDate, Date toDate) {
         MutableLiveData<List<Order>> result = new MutableLiveData<>();
-        ordersRef.whereEqualTo(Constants.FIELD_ORDER_STATUS, Constants.ORDER_DELIVERED)
-                .whereGreaterThanOrEqualTo(Constants.FIELD_CREATED_AT, fromDate)
+        ordersRef.whereGreaterThanOrEqualTo(Constants.FIELD_CREATED_AT, fromDate)
                 .whereLessThanOrEqualTo(Constants.FIELD_CREATED_AT, toDate)
                 .get()
-                .addOnSuccessListener(snapshots -> result.setValue(snapshots.toObjects(Order.class)));
+                .addOnSuccessListener(snapshots -> {
+                    List<Order> deliveredOrders = new ArrayList<>();
+                    for (Order order : snapshots.toObjects(Order.class)) {
+                        if (Constants.ORDER_DELIVERED.equals(order.getOrderStatus())) {
+                            deliveredOrders.add(order);
+                        }
+                    }
+                    result.setValue(deliveredOrders);
+                })
+                .addOnFailureListener(e -> result.setValue(new ArrayList<>()));
         return result;
     }
 

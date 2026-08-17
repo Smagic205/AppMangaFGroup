@@ -7,6 +7,7 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.lifecycle.ViewModelProvider;
@@ -26,6 +27,7 @@ public class ManageUserActivity extends AdminBaseActivity {
     private AdminUserViewModel viewModel;
     private AdminUserAdapter adapter;
     private View emptyState;
+    private TextView tvResultCount;
 
     @Override
     protected void onAdminAccessGranted(@Nullable Bundle savedInstanceState) {
@@ -39,6 +41,7 @@ public class ManageUserActivity extends AdminBaseActivity {
         setupRecyclerView();
 
         emptyState = findViewById(R.id.empty_state);
+        tvResultCount = findViewById(R.id.tv_result_count);
 
         viewModel.getDisplayedUsers().observe(this, this::onListChanged);
     }
@@ -106,5 +109,6 @@ public class ManageUserActivity extends AdminBaseActivity {
     private void onListChanged(List<com.example.bookapp.Model.User> users) {
         adapter.setItems(users);
         emptyState.setVisibility(users.isEmpty() ? View.VISIBLE : View.GONE);
+        tvResultCount.setText(users.size() + " người dùng");
     }
 }

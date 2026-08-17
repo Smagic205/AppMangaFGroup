@@ -94,11 +94,11 @@
 
             <!-- TÁC GIẢ / NXB — dạng dropdown chọn từ danh sách có sẵn -->
             <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.ExposedDropdownMenu"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/spacing_sm"
-                android:hint="Tác giả *"
-                app:endIconMode="dropdown_menu">
+                android:hint="Tác giả *">
 
                 <AutoCompleteTextView
                     android:id="@+id/act_book_author"
@@ -108,11 +108,11 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.ExposedDropdownMenu"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/spacing_sm"
-                android:hint="Nhà xuất bản *"
-                app:endIconMode="dropdown_menu">
+                android:hint="Nhà xuất bản *">
 
                 <AutoCompleteTextView
                     android:id="@+id/act_book_publisher"

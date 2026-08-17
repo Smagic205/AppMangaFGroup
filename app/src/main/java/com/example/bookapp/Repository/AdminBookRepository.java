@@ -96,7 +96,8 @@ public class AdminBookRepository {
     /** Top sách bán chạy — lấy 1 lần, dùng cho AdminDashboardActivity và StatisticActivity. */
     public LiveData<List<Book>> getTopSellingBooks(int limit) {
         MutableLiveData<List<Book>> result = new MutableLiveData<>();
-        booksRef.orderBy(Constants.FIELD_SOLD_COUNT, Query.Direction.DESCENDING)
+        booksRef.whereGreaterThan(Constants.FIELD_SOLD_COUNT, 0)
+                .orderBy(Constants.FIELD_SOLD_COUNT, Query.Direction.DESCENDING)
                 .limit(limit)
                 .get()
                 .addOnSuccessListener(snapshots -> result.setValue(snapshots.toObjects(Book.class)));
@@ -110,5 +111,32 @@ public class AdminBookRepository {
                 .get()
                 .addOnSuccessListener(snapshots -> result.setValue(snapshots.size()));
         return result;
+    }
+
+    /** Kiểm tra xem Thể loại có đang được dùng bởi sách nào không (hỗ trợ xóa an toàn). */
+    public void checkCategoryInUse(String categoryId, FirebaseCallback<Boolean> callback) {
+        booksRef.whereArrayContains(Constants.FIELD_CATEGORY_IDS, categoryId)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshots -> callback.onSuccess(!snapshots.isEmpty()))
+                .addOnFailureListener(callback::onFailure);
+    }
+
+    /** Kiểm tra xem Tác giả có đang được dùng bởi sách nào không (hỗ trợ xóa an toàn). */
+    public void checkAuthorInUse(String authorId, FirebaseCallback<Boolean> callback) {
+        booksRef.whereArrayContains(Constants.FIELD_AUTHOR_IDS, authorId)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshots -> callback.onSuccess(!snapshots.isEmpty()))
+                .addOnFailureListener(callback::onFailure);
+    }
+
+    /** Kiểm tra xem NXB có đang được dùng bởi sách nào không (hỗ trợ xóa an toàn). */
+    public void checkPublisherInUse(String publisherId, FirebaseCallback<Boolean> callback) {
+        booksRef.whereEqualTo(Constants.FIELD_PUBLISHER_ID, publisherId)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshots -> callback.onSuccess(!snapshots.isEmpty()))
+                .addOnFailureListener(callback::onFailure);
     }
 }

@@ -5,7 +5,9 @@ import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import com.example.bookapp.Model.Author;
 import com.example.bookapp.Model.Book;
+import com.example.bookapp.Repository.AdminAuthorRepository;
 import com.example.bookapp.Repository.AdminBookRepository;
 import com.example.bookapp.Utils.FirebaseCallback;
 
@@ -21,22 +23,32 @@ public class AdminBookViewModel extends ViewModel {
     public enum StockFilter {ALL, IN_STOCK, OUT_OF_STOCK, HIDDEN}
 
     private final AdminBookRepository repository = new AdminBookRepository();
+    private final AdminAuthorRepository authorRepository = new AdminAuthorRepository();
 
     private final LiveData<List<Book>> allBooks = repository.observeAllBooks();
+    private final LiveData<List<Author>> allAuthors = authorRepository.observeAllAuthors();
+    
     private final MediatorLiveData<List<Book>> displayedBooks = new MediatorLiveData<>();
-    private List<Book> cachedList = new ArrayList<>();
+    private List<Book> cachedBookList = new ArrayList<>();
+    private List<Author> cachedAuthorList = new ArrayList<>();
 
     private String currentKeyword = "";
     private SortOption currentSort = SortOption.NEWEST;
     private StockFilter currentStockFilter = StockFilter.ALL;
     private String currentCategoryId = null; // null = không lọc theo thể loại
+    private String currentAuthorId = null; // null = không lọc theo tác giả
+    private String currentPublisherId = null; // null = không lọc theo nxb
 
     private final MutableLiveData<Boolean> actionSuccess = new MutableLiveData<>();
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
 
     public AdminBookViewModel() {
         displayedBooks.addSource(allBooks, list -> {
-            cachedList = list != null ? list : new ArrayList<>();
+            cachedBookList = list != null ? list : new ArrayList<>();
+            applyFilterSort();
+        });
+        displayedBooks.addSource(allAuthors, list -> {
+            cachedAuthorList = list != null ? list : new ArrayList<>();
             applyFilterSort();
         });
     }
@@ -75,8 +87,18 @@ public class AdminBookViewModel extends ViewModel {
         applyFilterSort();
     }
 
+    public void setAuthorFilter(String authorId) {
+        currentAuthorId = authorId;
+        applyFilterSort();
+    }
+
+    public void setPublisherFilter(String publisherId) {
+        currentPublisherId = publisherId;
+        applyFilterSort();
+    }
+
     private void applyFilterSort() {
-        List<Book> result = repository.filterByTitle(cachedList, currentKeyword);
+        List<Book> result = repository.filterByTitle(cachedBookList, currentKeyword);
 
         if (currentCategoryId != null) {
             List<Book> byCategory = new ArrayList<>();
@@ -86,6 +108,26 @@ public class AdminBookViewModel extends ViewModel {
                 }
             }
             result = byCategory;
+        }
+
+        if (currentAuthorId != null) {
+            List<Book> byAuthor = new ArrayList<>();
+            for (Book b : result) {
+                if (b.getAuthorIds() != null && b.getAuthorIds().contains(currentAuthorId)) {
+                    byAuthor.add(b);
+                }
+            }
+            result = byAuthor;
+        }
+
+        if (currentPublisherId != null) {
+            List<Book> byPublisher = new ArrayList<>();
+            for (Book b : result) {
+                if (currentPublisherId.equals(b.getPublisherId())) {
+                    byPublisher.add(b);
+                }
+            }
+            result = byPublisher;
         }
 
         switch (currentStockFilter) {
@@ -119,6 +161,24 @@ public class AdminBookViewModel extends ViewModel {
             default:
                 // Đã orderBy createdAt DESC sẵn từ Repository, giữ nguyên thứ tự.
                 break;
+        }
+
+        // Join author names
+        for (Book b : sorted) {
+            if (b.getAuthorIds() != null && !b.getAuthorIds().isEmpty()) {
+                List<String> authorNames = new ArrayList<>();
+                for (String authorId : b.getAuthorIds()) {
+                    for (Author author : cachedAuthorList) {
+                        if (authorId.equals(author.getAuthorId())) {
+                            authorNames.add(author.getName());
+                            break;
+                        }
+                    }
+                }
+                b.setAuthorNameDisplay(String.join(", ", authorNames));
+            } else {
+                b.setAuthorNameDisplay("Không rõ tác giả");
+            }
         }
 
         displayedBooks.setValue(sorted);

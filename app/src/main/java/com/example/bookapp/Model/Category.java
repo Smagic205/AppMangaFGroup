@@ -45,10 +45,12 @@ public class Category {
         this.imageUrl = imageUrl;
     }
 
+    @com.google.firebase.firestore.PropertyName("isActive")
     public boolean isActive() {
         return isActive;
     }
 
+    @com.google.firebase.firestore.PropertyName("isActive")
     public void setActive(boolean active) {
         isActive = active;
     }

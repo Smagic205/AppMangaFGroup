@@ -6,6 +6,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.example.bookapp.Model.Publisher;
+import com.example.bookapp.Repository.AdminBookRepository;
 import com.example.bookapp.Repository.AdminPublisherRepository;
 import com.example.bookapp.Utils.FirebaseCallback;
 
@@ -16,6 +17,7 @@ import java.util.List;
 public class AdminPublisherViewModel extends ViewModel {
 
     private final AdminPublisherRepository repository = new AdminPublisherRepository();
+    private final AdminBookRepository bookRepository = new AdminBookRepository();
 
     private final LiveData<List<Publisher>> allPublishers = repository.observeAllPublishers();
     private final MediatorLiveData<List<Publisher>> displayedPublishers = new MediatorLiveData<>();
@@ -65,6 +67,17 @@ public class AdminPublisherViewModel extends ViewModel {
             errorMessage.setValue("Vui lòng nhập tên nhà xuất bản");
             return;
         }
+        
+        String trimmedName = name.trim();
+        for (Publisher p : cachedList) {
+            if (p.getName().equalsIgnoreCase(trimmedName)) {
+                if (publisherId == null || !p.getPublisherId().equals(publisherId)) {
+                    errorMessage.setValue("Tên nhà xuất bản đã tồn tại");
+                    return;
+                }
+            }
+        }
+        
         Publisher publisher = new Publisher();
         publisher.setPublisherId(publisherId);
         publisher.setName(name.trim());
@@ -90,10 +103,24 @@ public class AdminPublisherViewModel extends ViewModel {
     }
 
     public void deletePublisher(String publisherId) {
-        repository.deletePublisher(publisherId, new FirebaseCallback<Void>() {
+        bookRepository.checkPublisherInUse(publisherId, new FirebaseCallback<Boolean>() {
             @Override
-            public void onSuccess(Void result) {
-                saveSuccess.setValue(true);
+            public void onSuccess(Boolean inUse) {
+                if (inUse) {
+                    errorMessage.setValue("Không thể xóa vì đang có sản phẩm thuộc Nhà xuất bản này.");
+                } else {
+                    repository.deletePublisher(publisherId, new FirebaseCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            saveSuccess.setValue(true);
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            errorMessage.setValue(e.getMessage());
+                        }
+                    });
+                }
             }
 
             @Override
