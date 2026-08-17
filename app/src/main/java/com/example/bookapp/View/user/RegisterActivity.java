@@ -83,12 +83,20 @@ public class RegisterActivity extends AppCompatActivity {
             etEmail.setError("Email không hợp lệ");
             return;
         }
-        if (TextUtils.isEmpty(phone)) {
-            etPhone.setError("Vui lòng nhập số điện thoại");
+        if (TextUtils.isEmpty(phone) || !phone.matches("\\d{10}")) {
+            etPhone.setError("Số điện thoại phải gồm 10 chữ số");
             return;
         }
-        if (password.length() < 6) {
-            etPassword.setError("Mật khẩu tối thiểu 6 ký tự");
+        if (password.length() < 6 || password.length() > 12) {
+            etPassword.setError("Mật khẩu phải từ 6-12 ký tự");
+            return;
+        }
+        if (!password.matches(".*[A-Z].*")) {
+            etPassword.setError("Mật khẩu phải chứa ít nhất 1 ký tự in hoa");
+            return;
+        }
+        if (!password.matches(".*[^a-zA-Z0-9].*")) {
+            etPassword.setError("Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt");
             return;
         }
         if (!password.equals(confirmPassword)) {

@@ -52,15 +52,10 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <TextView
-                            android:id="@+id/tv_order_id"
+                        <Space
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Đơn hàng #BS20260811"
-                            android:textColor="@color/text_primary"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
+                            android:layout_weight="1" />
 
                         <TextView
                             android:id="@+id/tv_order_status"
@@ -137,10 +132,10 @@
                         android:layout_marginTop="4dp"
                         android:orientation="horizontal">
 
-                        <TextView style="@style/OrderStepLabel" android:text="Đặt hàng" />
-                        <TextView style="@style/OrderStepLabel" android:text="Xác nhận" />
-                        <TextView style="@style/OrderStepLabel" android:text="Đang giao" android:textColor="@color/primary" android:textStyle="bold" />
-                        <TextView style="@style/OrderStepLabel" android:text="Hoàn thành" />
+                        <TextView android:id="@+id/tv_step1_label" style="@style/OrderStepLabel" android:text="Đặt hàng" />
+                        <TextView android:id="@+id/tv_step2_label" style="@style/OrderStepLabel" android:text="Xác nhận" />
+                        <TextView android:id="@+id/tv_step3_label" style="@style/OrderStepLabel" android:text="Đang giao" />
+                        <TextView android:id="@+id/tv_step4_label" style="@style/OrderStepLabel" android:text="Hoàn thành" />
                     </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>

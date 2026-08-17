@@ -155,8 +155,8 @@ public class EditProfileActivity extends AppCompatActivity {
             etFullName.setError("Vui lòng nhập họ tên");
             return;
         }
-        if (TextUtils.isEmpty(phone)) {
-            etPhone.setError("Vui lòng nhập số điện thoại");
+        if (TextUtils.isEmpty(phone) || !phone.matches("\\d{10}")) {
+            etPhone.setError("Số điện thoại phải gồm 10 chữ số");
             return;
         }
 

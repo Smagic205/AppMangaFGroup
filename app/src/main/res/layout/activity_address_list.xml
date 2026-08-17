@@ -88,7 +88,7 @@
         android:padding="16dp"
         android:src="@drawable/ic_plus"
         app:tint="@color/white"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/btn_use_address"
         app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

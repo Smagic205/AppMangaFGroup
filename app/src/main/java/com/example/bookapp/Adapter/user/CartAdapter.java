@@ -81,10 +81,13 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder
         holder.ibDecrease.setOnClickListener(v -> {
             if (item.getQuantity() > 1) {
                 listener.onQuantityChanged(item, item.getQuantity() - 1);
+                notifyItemChanged(holder.getAdapterPosition());
             }
         });
-        holder.ibIncrease.setOnClickListener(v ->
-                listener.onQuantityChanged(item, item.getQuantity() + 1));
+        holder.ibIncrease.setOnClickListener(v -> {
+            listener.onQuantityChanged(item, item.getQuantity() + 1);
+            notifyItemChanged(holder.getAdapterPosition());
+        });
         holder.ibRemove.setOnClickListener(v -> listener.onRemove(item, position));
     }
 

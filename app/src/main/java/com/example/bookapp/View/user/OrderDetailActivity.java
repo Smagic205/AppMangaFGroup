@@ -25,8 +25,9 @@ public class OrderDetailActivity extends AppCompatActivity {
 
     public static final String EXTRA_ORDER_ID = "extra_order_id";
 
-    private TextView tvOrderId, tvOrderStatus, tvAddressNamePhone, tvAddressDetail,
+    private TextView tvOrderStatus, tvAddressNamePhone, tvAddressDetail,
             tvTotalPrice, tvShippingFee, tvDiscount, tvFinalTotal, tvNote;
+    private TextView tvStep1Label, tvStep2Label, tvStep3Label, tvStep4Label;
     private android.widget.ImageView step1Dot, step2Dot, step3Dot, step4Dot;
     private View stepLine1, stepLine2, stepLine3;
     private RecyclerView rvOrderItems;
@@ -77,8 +78,11 @@ public class OrderDetailActivity extends AppCompatActivity {
     }
 
     private void bindViews() {
-        tvOrderId = findViewById(R.id.tv_order_id);
         tvOrderStatus = findViewById(R.id.tv_order_status);
+        tvStep1Label = findViewById(R.id.tv_step1_label);
+        tvStep2Label = findViewById(R.id.tv_step2_label);
+        tvStep3Label = findViewById(R.id.tv_step3_label);
+        tvStep4Label = findViewById(R.id.tv_step4_label);
         tvAddressNamePhone = findViewById(R.id.tv_address_name_phone);
         tvAddressDetail = findViewById(R.id.tv_address_detail);
         rvOrderItems = findViewById(R.id.rv_order_items);
@@ -104,7 +108,6 @@ public class OrderDetailActivity extends AppCompatActivity {
     private void bindOrderData(Order order) {
         NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
 
-        tvOrderId.setText("Đơn hàng #" + order.getOrderId());
         tvOrderStatus.setText(mapStatusToLabel(order.getOrderStatus()));
 
         if (order.getShippingAddress() != null) {
@@ -137,23 +140,31 @@ public class OrderDetailActivity extends AppCompatActivity {
         
         int s1 = 0, s2 = 0, s3 = 0, s4 = 0;
         int l1 = 0, l2 = 0, l3 = 0;
+        int t1 = 0, t2 = 0, t3 = 0, t4 = 0;
 
         if ("pending".equals(status)) {
-            s1 = 1;
+            s1 = 1; t1 = 1;
         } else if ("confirmed".equals(status) || "packing".equals(status)) {
-            s1 = 2; s2 = 1; l1 = 1;
+            s1 = 2; s2 = 1; l1 = 1; t1 = 2; t2 = 1;
         } else if ("shipping".equals(status)) {
-            s1 = 2; s2 = 2; s3 = 1; l1 = 1; l2 = 1;
+            s1 = 2; s2 = 2; s3 = 0; l1 = 1; l2 = 0;
+            t1 = 2; t2 = 2; t3 = 1;
         } else if ("delivered".equals(status)) {
             s1 = 2; s2 = 2; s3 = 2; s4 = 2; l1 = 1; l2 = 1; l3 = 1;
+            t1 = 2; t2 = 2; t3 = 2; t4 = 1;
         } else {
-            s1 = 1; 
+            s1 = 1; t1 = 1;
         }
 
         setStepState(step1Dot, s1);
         setStepState(step2Dot, s2);
         setStepState(step3Dot, s3);
         setStepState(step4Dot, s4);
+        
+        setStepLabelState(tvStep1Label, t1);
+        setStepLabelState(tvStep2Label, t2);
+        setStepLabelState(tvStep3Label, t3);
+        setStepLabelState(tvStep4Label, t4);
 
         stepLine1.setBackgroundResource(l1 == 1 ? R.color.status_success : R.color.divider);
         stepLine2.setBackgroundResource(l2 == 1 ? R.color.status_success : R.color.divider);
@@ -170,6 +181,20 @@ public class OrderDetailActivity extends AppCompatActivity {
         } else if (state == 2) {
             dot.setBackgroundTintList(androidx.core.content.ContextCompat.getColorStateList(this, R.color.status_success));
             dot.setColorFilter(androidx.core.content.ContextCompat.getColor(this, R.color.white), android.graphics.PorterDuff.Mode.SRC_IN);
+        }
+    }
+
+    private void setStepLabelState(TextView tv, int state) {
+        if (tv == null) return;
+        if (state == 0) {
+            tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.text_hint));
+            tv.setTypeface(null, android.graphics.Typeface.NORMAL);
+        } else if (state == 1) {
+            tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.primary));
+            tv.setTypeface(null, android.graphics.Typeface.BOLD);
+        } else if (state == 2) {
+            tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.text_primary));
+            tv.setTypeface(null, android.graphics.Typeface.NORMAL);
         }
     }
 
