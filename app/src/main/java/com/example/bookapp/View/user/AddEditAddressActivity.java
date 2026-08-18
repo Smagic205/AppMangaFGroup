@@ -253,6 +253,11 @@ public class AddEditAddressActivity extends AppCompatActivity {
             return;
         }
 
+        if (!phone.matches("\\d{10}")) {
+            Toast.makeText(this, "Số điện thoại không hợp lệ (phải gồm 10 chữ số)", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         String uid = FirebaseUtils.getCurrentUserId();
         if (uid == null) return;
 

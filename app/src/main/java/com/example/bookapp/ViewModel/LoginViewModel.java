@@ -33,7 +33,40 @@ public class LoginViewModel extends ViewModel {
      */
     public void loginWithGoogle(com.google.firebase.auth.AuthCredential credential) {
         FirebaseUtils.getAuth().signInWithCredential(credential)
-                .addOnSuccessListener(authResult -> _loginSuccess.setValue(true))
+                .addOnSuccessListener(authResult -> {
+                    com.google.firebase.auth.FirebaseUser firebaseUser = authResult.getUser();
+                    if (firebaseUser != null) {
+                        String uid = firebaseUser.getUid();
+                        FirebaseUtils.getFirestore().collection(com.example.bookapp.Utils.Constants.COLLECTION_USERS)
+                                .document(uid)
+                                .get()
+                                .addOnSuccessListener(documentSnapshot -> {
+                                    if (!documentSnapshot.exists()) {
+                                        String email = firebaseUser.getEmail() != null ? firebaseUser.getEmail() : "";
+                                        String name = firebaseUser.getDisplayName();
+                                        if (name == null || name.trim().isEmpty()) {
+                                            name = "User";
+                                        }
+                                        String avatar = firebaseUser.getPhotoUrl() != null ? firebaseUser.getPhotoUrl().toString() : "";
+                                        
+                                        com.example.bookapp.Model.User newUser = new com.example.bookapp.Model.User(
+                                                uid, name, email, "", avatar, "user", "", null
+                                        );
+                                        
+                                        FirebaseUtils.getFirestore().collection(com.example.bookapp.Utils.Constants.COLLECTION_USERS)
+                                                .document(uid)
+                                                .set(newUser)
+                                                .addOnSuccessListener(aVoid -> _loginSuccess.setValue(true))
+                                                .addOnFailureListener(e -> _errorMessage.setValue("Lỗi khi lưu thông tin: " + e.getMessage()));
+                                    } else {
+                                        _loginSuccess.setValue(true);
+                                    }
+                                })
+                                .addOnFailureListener(e -> _errorMessage.setValue("Lỗi kiểm tra người dùng: " + e.getMessage()));
+                    } else {
+                        _loginSuccess.setValue(true);
+                    }
+                })
                 .addOnFailureListener(e -> _errorMessage.setValue(e.getMessage()));
     }
 }

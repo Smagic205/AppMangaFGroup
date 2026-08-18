@@ -86,7 +86,7 @@ public class LoginActivity extends AppCompatActivity {
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null) {
                 setLoading(false);
-                Toast.makeText(this, "Đăng nhập thất bại, vui lòng kiểm tra lại", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Lỗi: " + error, Toast.LENGTH_LONG).show();
             }
         });
 
@@ -106,15 +106,24 @@ public class LoginActivity extends AppCompatActivity {
                         Intent data = result.getData();
                         try {
                             com.google.android.gms.auth.api.signin.GoogleSignInAccount account = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(data).getResult(com.google.android.gms.common.api.ApiException.class);
-                            if (account != null) {
+                            if (account != null && account.getIdToken() != null) {
                                 firebaseAuthWithGoogle(account.getIdToken());
+                            } else {
+                                setLoading(false);
+                                Toast.makeText(this, "Không lấy được ID Token. Vui lòng kiểm tra lại cấu hình Web Client ID.", Toast.LENGTH_LONG).show();
                             }
                         } catch (com.google.android.gms.common.api.ApiException e) {
                             setLoading(false);
-                            Toast.makeText(this, "Đăng nhập Google thất bại: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            String errorMsg = e.getMessage();
+                            if (errorMsg != null && errorMsg.contains("12500")) {
+                                Toast.makeText(this, "Lỗi 12500: Bạn chưa thêm mã SHA-1 của máy này vào Firebase Console.", Toast.LENGTH_LONG).show();
+                            } else {
+                                Toast.makeText(this, "Đăng nhập Google thất bại: " + errorMsg, Toast.LENGTH_LONG).show();
+                            }
                         }
                     } else {
                         setLoading(false);
+                        Toast.makeText(this, "Đăng nhập bị hủy hoặc lỗi cấu hình SHA-1 (Mã: " + result.getResultCode() + ")", Toast.LENGTH_LONG).show();
                     }
                 }
         );
@@ -122,8 +131,11 @@ public class LoginActivity extends AppCompatActivity {
         Button btnGoogleLogin = findViewById(R.id.btn_google_login);
         btnGoogleLogin.setOnClickListener(v -> {
             setLoading(true);
-            Intent signInIntent = mGoogleSignInClient.getSignInIntent();
-            googleSignInLauncher.launch(signInIntent);
+            // Đăng xuất phiên cũ (nếu bị kẹt) trước khi hiển thị popup chọn tài khoản
+            mGoogleSignInClient.signOut().addOnCompleteListener(this, task -> {
+                Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+                googleSignInLauncher.launch(signInIntent);
+            });
         });
     }
 

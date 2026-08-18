@@ -28,7 +28,7 @@ public class ProfileFragment extends Fragment {
     private ImageButton ibEditProfile;
     private TextView tvName, tvEmail, tvViewOrderHistory;
     private LinearLayout llMenuPersonalInfo, llMenuAddress, llMenuNotification,
-            llMenuFavorites, llMenuSettings,
+            llMenuFavorites,
             llStatusPending, llStatusShipping, llStatusDelivered, llStatusCancelled;
     private Button btnLogout;
 
@@ -79,7 +79,6 @@ public class ProfileFragment extends Fragment {
         llMenuAddress = view.findViewById(R.id.ll_menu_address);
         llMenuNotification = view.findViewById(R.id.ll_menu_notification);
         llMenuFavorites = view.findViewById(R.id.ll_menu_favorites);
-        llMenuSettings = view.findViewById(R.id.ll_menu_settings);
         llStatusPending = view.findViewById(R.id.ll_status_pending);
         llStatusShipping = view.findViewById(R.id.ll_status_shipping);
         llStatusDelivered = view.findViewById(R.id.ll_status_delivered);
@@ -98,9 +97,6 @@ public class ProfileFragment extends Fragment {
                 startActivity(new Intent(getContext(), NotificationActivity.class)));
         llMenuFavorites.setOnClickListener(v ->
                 startActivity(new Intent(getContext(), FavoriteBooksActivity.class)));
-        llMenuSettings.setOnClickListener(v -> {
-            // TODO: màn Cài đặt chưa có trong phạm vi hiện tại
-        });
 
         tvViewOrderHistory.setOnClickListener(v -> openOrderHistory(null));
         llStatusPending.setOnClickListener(v -> openOrderHistory(Constants.ORDER_PENDING));
