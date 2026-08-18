@@ -8,7 +8,6 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.example.bookapp.Model.User;
-import com.example.bookapp.Repository.StorageRepository;
 import com.example.bookapp.Repository.UserRepository;
 import com.example.bookapp.Utils.FirebaseCallback;
 import com.google.firebase.Timestamp;
@@ -18,13 +17,11 @@ import java.util.Map;
 
 /**
  * ViewModel cho EditProfileActivity.
- * Tách load user hiện tại + update Firestore + upload avatar Storage ra khỏi Activity.
- * Upload ảnh đi qua StorageRepository (không thuộc Firestore thuần túy).
+ * Tách load user hiện tại + update Firestore.
  */
 public class EditProfileViewModel extends ViewModel {
 
     private final UserRepository userRepository = new UserRepository();
-    private final StorageRepository storageRepository = new StorageRepository();
 
     private final MutableLiveData<User> _user = new MutableLiveData<>();
     private final MutableLiveData<Boolean> _saveSuccess = new MutableLiveData<>();
@@ -40,27 +37,11 @@ public class EditProfileViewModel extends ViewModel {
 
     /**
      * Lưu hồ sơ người dùng.
-     * Nếu có ảnh mới (avatarUri != null): upload lên Storage trước, lấy URL rồi update Firestore.
-     * Nếu không có ảnh mới: update Firestore thẳng (không thay đổi avatarUrl hiện tại).
      */
     public void saveProfile(String uid, String fullName, String phone,
                             String gender, Timestamp birthday,
-                            @Nullable Uri avatarUri) {
-        if (avatarUri != null) {
-            storageRepository.uploadAvatar(uid, avatarUri, new FirebaseCallback<String>() {
-                @Override
-                public void onSuccess(String downloadUrl) {
-                    updateFirestore(uid, fullName, phone, gender, birthday, downloadUrl);
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    _errorMessage.setValue("Upload ảnh thất bại: " + e.getMessage());
-                }
-            });
-        } else {
-            updateFirestore(uid, fullName, phone, gender, birthday, null);
-        }
+                            @Nullable String avatarUrl) {
+        updateFirestore(uid, fullName, phone, gender, birthday, avatarUrl);
     }
 
     private void updateFirestore(String uid, String fullName, String phone,

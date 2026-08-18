@@ -16,7 +16,9 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
 import com.example.bookapp.R;
+import com.example.bookapp.Utils.Constants;
 import com.example.bookapp.Utils.FirebaseUtils;
+import com.example.bookapp.Utils.ImageUtils;
 import com.example.bookapp.ViewModel.EditProfileViewModel;
 import com.google.firebase.Timestamp;
 
@@ -102,7 +104,7 @@ public class EditProfileActivity extends AppCompatActivity {
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null) {
                 setLoading(false);
-                Toast.makeText(this, "Có lỗi xảy ra, vui lòng thử lại", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, error, Toast.LENGTH_LONG).show();
             }
         });
 
@@ -167,7 +169,23 @@ public class EditProfileActivity extends AppCompatActivity {
 
         setLoading(true);
         Timestamp birthday = new Timestamp(birthdayCalendar.getTime());
-        viewModel.saveProfile(uid, fullName, phone, gender, birthday, selectedAvatarUri);
+        
+        if (selectedAvatarUri != null) {
+            ImageUtils.uploadImage(this, selectedAvatarUri, Constants.STORAGE_AVATARS, new ImageUtils.OnUploadCompleteListener() {
+                @Override
+                public void onSuccess(String downloadUrl) {
+                    viewModel.saveProfile(uid, fullName, phone, gender, birthday, downloadUrl);
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    setLoading(false);
+                    Toast.makeText(EditProfileActivity.this, "Upload ảnh thất bại: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            viewModel.saveProfile(uid, fullName, phone, gender, birthday, null);
+        }
     }
 
     private void setLoading(boolean loading) {

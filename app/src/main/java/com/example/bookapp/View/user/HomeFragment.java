@@ -36,6 +36,7 @@ public class HomeFragment extends Fragment {
     private TextView tvGreeting, tvUserName, tvSearchHint, tvSeeAllCategory, tvSeeAllFeatured;
     private ImageButton ibNotification;
     private View vNotificationDot;
+    private de.hdodenhof.circleimageview.CircleImageView ivUserAvatar;
 
     private androidx.viewpager2.widget.ViewPager2 vpBanner;
     private com.google.android.material.tabs.TabLayout tabBannerIndicator;
@@ -65,7 +66,17 @@ public class HomeFragment extends Fragment {
 
         // Observe 4 LiveData, Fragment không gọi Firestore trực tiếp
         viewModel.getCurrentUser().observe(getViewLifecycleOwner(), user -> {
-            if (user != null) tvUserName.setText(user.getFullName());
+            if (user != null) {
+                tvUserName.setText(user.getFullName());
+                if (user.getAvatarUrl() != null && !user.getAvatarUrl().isEmpty()) {
+                    com.bumptech.glide.Glide.with(this)
+                            .load(user.getAvatarUrl())
+                            .placeholder(R.drawable.placeholder_avatar)
+                            .into(ivUserAvatar);
+                } else {
+                    ivUserAvatar.setImageResource(R.drawable.placeholder_avatar);
+                }
+            }
         });
 
         viewModel.getCategories().observe(getViewLifecycleOwner(), categories -> {
@@ -120,6 +131,7 @@ public class HomeFragment extends Fragment {
         tvSeeAllFeatured = view.findViewById(R.id.tv_see_all_featured);
         ibNotification = view.findViewById(R.id.ib_notification);
         vNotificationDot = view.findViewById(R.id.v_notification_dot);
+        ivUserAvatar = view.findViewById(R.id.iv_user_avatar);
     }
 
     private void setupBanner() {
