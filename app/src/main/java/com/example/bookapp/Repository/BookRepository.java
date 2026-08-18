@@ -40,8 +40,8 @@ public class BookRepository {
         MutableLiveData<List<Book>> liveData = new MutableLiveData<>();
 
         FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
-                .whereEqualTo("isFeatured", true)
-                .whereEqualTo("isActive", true)
+                .whereEqualTo(Constants.FIELD_IS_FEATURED, true)
+                .whereEqualTo(Constants.FIELD_IS_ACTIVE, true)
                 .get()
                 .addOnSuccessListener(qs -> liveData.setValue(toBookList(qs)))
                 .addOnFailureListener(e -> liveData.setValue(new ArrayList<>()));
@@ -54,7 +54,7 @@ public class BookRepository {
         MutableLiveData<List<Book>> liveData = new MutableLiveData<>();
 
         FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
-                .whereEqualTo("isActive", true)
+                .whereEqualTo(Constants.FIELD_IS_ACTIVE, true)
                 .get()
                 .addOnSuccessListener(qs -> liveData.setValue(toBookList(qs)))
                 .addOnFailureListener(e -> liveData.setValue(new ArrayList<>()));
@@ -67,7 +67,7 @@ public class BookRepository {
         MutableLiveData<List<Book>> liveData = new MutableLiveData<>();
 
         FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
-                .whereEqualTo("isActive", true)
+                .whereEqualTo(Constants.FIELD_IS_ACTIVE, true)
                 .limit(10)
                 .get()
                 .addOnSuccessListener(qs -> {
@@ -96,7 +96,7 @@ public class BookRepository {
         MutableLiveData<List<Book>> liveData = new MutableLiveData<>();
 
         Query query = FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
-                .whereEqualTo("isActive", true);
+                .whereEqualTo(Constants.FIELD_IS_ACTIVE, true);
 
         if (categoryId != null) {
             query = query.whereArrayContains("categoryIds", categoryId);

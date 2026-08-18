@@ -5,6 +5,7 @@ import java.util.List;
 /**
  * Model tương ứng bảng "books"
  */
+@com.google.firebase.firestore.IgnoreExtraProperties
 public class Book {
 
     @com.google.firebase.firestore.DocumentId
@@ -219,6 +220,7 @@ public class Book {
     /**
      * True nếu salePrice > 0 và nhỏ hơn giá gốc -> đang khuyến mãi.
      */
+    @com.google.firebase.firestore.Exclude
     public boolean isOnSale() {
         return salePrice > 0 && salePrice < price;
     }

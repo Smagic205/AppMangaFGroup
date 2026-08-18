@@ -35,6 +35,7 @@ public class HomeFragment extends Fragment {
     private LinearLayout llEmptyState, llSearchBar;
     private TextView tvGreeting, tvUserName, tvSearchHint, tvSeeAllCategory, tvSeeAllFeatured;
     private ImageButton ibNotification;
+    private View vNotificationDot;
 
     private androidx.viewpager2.widget.ViewPager2 vpBanner;
     private com.google.android.material.tabs.TabLayout tabBannerIndicator;
@@ -90,6 +91,14 @@ public class HomeFragment extends Fragment {
             rvAllBooks.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
         });
 
+        viewModel.getHasUnreadNotification().observe(getViewLifecycleOwner(), hasUnread -> {
+            if (Boolean.TRUE.equals(hasUnread)) {
+                vNotificationDot.setVisibility(View.VISIBLE);
+            } else {
+                vNotificationDot.setVisibility(View.GONE);
+            }
+        });
+
         pbLoading.setVisibility(View.VISIBLE);
         String uid = FirebaseUtils.getCurrentUserId();
         if (uid != null) viewModel.load(uid);
@@ -110,6 +119,7 @@ public class HomeFragment extends Fragment {
         tvSeeAllCategory = view.findViewById(R.id.tv_see_all_category);
         tvSeeAllFeatured = view.findViewById(R.id.tv_see_all_featured);
         ibNotification = view.findViewById(R.id.ib_notification);
+        vNotificationDot = view.findViewById(R.id.v_notification_dot);
     }
 
     private void setupBanner() {
@@ -143,7 +153,10 @@ public class HomeFragment extends Fragment {
 
     private void setupClicks() {
         llSearchBar.setOnClickListener(v -> startActivity(new Intent(getContext(), SearchActivity.class)));
-        ibNotification.setOnClickListener(v -> startActivity(new Intent(getContext(), NotificationActivity.class)));
+        ibNotification.setOnClickListener(v -> {
+            vNotificationDot.setVisibility(View.GONE);
+            startActivity(new Intent(getContext(), NotificationActivity.class));
+        });
         tvSeeAllCategory.setOnClickListener(v -> startActivity(new Intent(getContext(), SearchActivity.class)));
         tvSeeAllFeatured.setOnClickListener(v -> {
             Intent intent = new Intent(getContext(), SearchActivity.class);

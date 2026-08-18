@@ -7,9 +7,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import android.widget.EditText;
 
 import com.example.bookapp.Adapter.admin.AdminSentNotificationAdapter;
 import com.example.bookapp.R;
@@ -101,20 +103,30 @@ public class ManageNotificationActivity extends AdminBaseActivity {
         String title = etTitle.getText() != null ? etTitle.getText().toString().trim() : "";
         String content = etContent.getText() != null ? etContent.getText().toString().trim() : "";
 
-        // Chip "Chọn người dùng cụ thể" — chưa có UI chọn danh sách user cụ thể, đây là
-        // giới hạn có chủ đích ở bản này. Nếu bấm chip đó, báo rõ cho admin biết thay vì
-        // âm thầm gửi sai đối tượng.
         int targetId = cgTarget.getCheckedChipId();
-        if (targetId == R.id.chip_target_specific) {
-            Toast.makeText(this, "Chức năng chọn người dùng cụ thể sẽ bổ sung sau — hiện chỉ hỗ trợ gửi cho tất cả", Toast.LENGTH_LONG).show();
-            return;
-        }
-
         String type = cgType.getCheckedChipId() == R.id.chip_type_system
                 ? Constants.NOTIF_TYPE_SYSTEM : Constants.NOTIF_TYPE_PROMO;
 
-        // targetUserId = null nghĩa là broadcast cho tất cả user, đúng thiết kế field
-        // userId trong bảng notifications ("null nếu gửi broadcast toàn user").
+        if (targetId == R.id.chip_target_specific) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Gửi cho một người dùng");
+            builder.setMessage("Nhập email người dùng bạn muốn gửi thông báo:");
+
+            final EditText input = new EditText(this);
+            input.setHint("VD: user@example.com");
+            input.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+            builder.setView(input);
+
+            builder.setPositiveButton("Gửi", (dialog, which) -> {
+                String email = input.getText().toString().trim();
+                viewModel.sendToUserEmail(email, title, content, type);
+            });
+            builder.setNegativeButton("Hủy", (dialog, which) -> dialog.cancel());
+            builder.show();
+            return;
+        }
+
+        // targetUserId = null nghĩa là broadcast cho tất cả user
         viewModel.send(null, title, content, type);
     }
 }

@@ -125,4 +125,8 @@ public class BookDetailViewModel extends ViewModel {
     public void incrementViewCount(String bookId, int currentViewCount) {
         bookRepository.incrementViewCount(bookId, currentViewCount);
     }
+
+    public void resetAddToCartStatus() {
+        _addToCartSuccess.setValue(null);
+    }
 }

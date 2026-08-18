@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel;
 import com.example.bookapp.Model.Notification;
 import com.example.bookapp.Repository.AdminNotificationRepository;
 import com.example.bookapp.Utils.FirebaseCallback;
+import com.example.bookapp.Utils.FirebaseUtils;
 
 import java.util.List;
 
@@ -44,7 +45,7 @@ public class AdminNotificationViewModel extends ViewModel {
             return;
         }
 
-        repository.sendNotification(targetUserId, title.trim(), content.trim(), type,
+        repository.sendNotification(targetUserId, title.trim(), content.trim(), type, null,
                 new FirebaseCallback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
@@ -56,5 +57,25 @@ public class AdminNotificationViewModel extends ViewModel {
                         errorMessage.setValue(e.getMessage());
                     }
                 });
+    }
+
+    public void sendToUserEmail(String email, String title, String content, String type) {
+        if (email == null || email.trim().isEmpty()) {
+            errorMessage.setValue("Vui lòng nhập email người nhận");
+            return;
+        }
+        FirebaseUtils.getFirestore().collection("users")
+                .whereEqualTo("email", email.trim())
+                .limit(1)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (queryDocumentSnapshots.isEmpty()) {
+                        errorMessage.setValue("Không tìm thấy người dùng với email này");
+                    } else {
+                        String targetUserId = queryDocumentSnapshots.getDocuments().get(0).getId();
+                        send(targetUserId, title, content, type);
+                    }
+                })
+                .addOnFailureListener(e -> errorMessage.setValue(e.getMessage()));
     }
 }

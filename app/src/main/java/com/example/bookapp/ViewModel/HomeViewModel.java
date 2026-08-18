@@ -10,6 +10,8 @@ import com.example.bookapp.Model.User;
 import com.example.bookapp.Repository.BookRepository;
 import com.example.bookapp.Repository.CategoryRepository;
 import com.example.bookapp.Repository.UserRepository;
+import com.example.bookapp.Repository.NotificationRepository;
+import com.example.bookapp.Model.Notification;
 
 import java.util.List;
 
@@ -24,16 +26,19 @@ public class HomeViewModel extends ViewModel {
     private final CategoryRepository categoryRepository = new CategoryRepository();
     private final BookRepository bookRepository = new BookRepository();
     private final com.example.bookapp.Repository.AuthorRepository authorRepository = new com.example.bookapp.Repository.AuthorRepository();
+    private final NotificationRepository notificationRepository = new NotificationRepository();
 
     private final MutableLiveData<User> _currentUser = new MutableLiveData<>();
     private final MutableLiveData<List<Category>> _categories = new MutableLiveData<>();
     private final MutableLiveData<List<Book>> _featuredBooks = new MutableLiveData<>();
     private final MutableLiveData<List<Book>> _allBooks = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> _hasUnreadNotification = new MutableLiveData<>();
 
     public LiveData<User> getCurrentUser() { return _currentUser; }
     public LiveData<List<Category>> getCategories() { return _categories; }
     public LiveData<List<Book>> getFeaturedBooks() { return _featuredBooks; }
     public LiveData<List<Book>> getAllBooks() { return _allBooks; }
+    public LiveData<Boolean> getHasUnreadNotification() { return _hasUnreadNotification; }
 
     // Quản lý Observers để tránh rỉ bộ nhớ
     private LiveData<User> userLiveData;
@@ -51,6 +56,9 @@ public class HomeViewModel extends ViewModel {
     private LiveData<List<com.example.bookapp.Model.Author>> authorsLiveData;
     private androidx.lifecycle.Observer<List<com.example.bookapp.Model.Author>> authorsObserver;
 
+    private LiveData<List<Notification>> notificationLiveData;
+    private androidx.lifecycle.Observer<List<Notification>> notificationObserver;
+
     // Cache dữ liệu để ghép tên tác giả
     private final java.util.Map<String, String> authorNameMap = new java.util.HashMap<>();
     private List<Book> tempFeaturedBooks;
@@ -62,6 +70,24 @@ public class HomeViewModel extends ViewModel {
         loadAuthors(); // Lấy tác giả trước hoặc song song
         loadFeaturedBooks();
         loadAllBooks();
+        loadNotifications(uid);
+    }
+
+    private void loadNotifications(String uid) {
+        notificationLiveData = notificationRepository.getNotifications(uid);
+        notificationObserver = notifications -> {
+            boolean hasUnread = false;
+            if (notifications != null) {
+                for (Notification n : notifications) {
+                    if (!n.isRead()) {
+                        hasUnread = true;
+                        break;
+                    }
+                }
+            }
+            _hasUnreadNotification.setValue(hasUnread);
+        };
+        notificationLiveData.observeForever(notificationObserver);
     }
 
     private void loadAuthors() {
@@ -140,5 +166,6 @@ public class HomeViewModel extends ViewModel {
         if (featuredBooksLiveData != null && featuredBooksObserver != null) featuredBooksLiveData.removeObserver(featuredBooksObserver);
         if (allBooksLiveData != null && allBooksObserver != null) allBooksLiveData.removeObserver(allBooksObserver);
         if (authorsLiveData != null && authorsObserver != null) authorsLiveData.removeObserver(authorsObserver);
+        if (notificationLiveData != null && notificationObserver != null) notificationLiveData.removeObserver(notificationObserver);
     }
 }

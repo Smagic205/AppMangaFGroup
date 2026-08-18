@@ -25,7 +25,7 @@ public class AdminNotificationRepository {
      * Dùng cho ManageNotificationActivity.
      */
     public void sendNotification(@Nullable String userId, String title, String content,
-                                  String type, FirebaseCallback<Void> callback) {
+                                  String type, @Nullable String relatedId, FirebaseCallback<Void> callback) {
         DocumentReference docRef = notificationsRef.document();
         Notification notification = new Notification();
         notification.setNotificationId(docRef.getId());
@@ -33,6 +33,7 @@ public class AdminNotificationRepository {
         notification.setTitle(title);
         notification.setContent(content);
         notification.setType(type);
+        notification.setRelatedId(relatedId);
         notification.setRead(false);
         notification.setCreatedAt(Timestamp.now());
 
@@ -51,7 +52,7 @@ public class AdminNotificationRepository {
                                              FirebaseCallback<Void> callback) {
         String title = "Cập nhật đơn hàng #" + orderId;
         String content = "Đơn hàng của bạn hiện đang: " + statusLabel;
-        sendNotification(userId, title, content, Constants.NOTIF_TYPE_ORDER, callback);
+        sendNotification(userId, title, content, Constants.NOTIF_TYPE_ORDER, orderId, callback);
     }
 
     /** N thông báo admin đã gửi gần đây, lấy 1 lần — khối "Đã gửi gần đây" trong ManageNotificationActivity. */

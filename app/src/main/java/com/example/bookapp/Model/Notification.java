@@ -12,6 +12,7 @@ public class Notification {
     private String title;
     private String content;
     private String type;     // "order" | "promo" | "system"
+    private String relatedId; // id của đối tượng liên quan (ví dụ: orderId)
     private boolean isRead;
     private Timestamp createdAt;
 
@@ -19,12 +20,13 @@ public class Notification {
     }
 
     public Notification(String notificationId, String userId, String title, String content,
-                         String type, boolean isRead, Timestamp createdAt) {
+                         String type, String relatedId, boolean isRead, Timestamp createdAt) {
         this.notificationId = notificationId;
         this.userId = userId;
         this.title = title;
         this.content = content;
         this.type = type;
+        this.relatedId = relatedId;
         this.isRead = isRead;
         this.createdAt = createdAt;
     }
@@ -83,5 +85,13 @@ public class Notification {
 
     public void setCreatedAt(Timestamp createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getRelatedId() {
+        return relatedId;
+    }
+
+    public void setRelatedId(String relatedId) {
+        this.relatedId = relatedId;
     }
 }

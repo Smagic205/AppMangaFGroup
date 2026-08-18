@@ -11,7 +11,13 @@ import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.firestore.QuerySnapshot;
+import android.util.Log;
 
 /**
  * Lớp DUY NHẤT được phép gọi Firestore cho collection "notifications".
@@ -22,20 +28,38 @@ public class NotificationRepository {
     public LiveData<List<Notification>> getNotifications(String uid) {
         MutableLiveData<List<Notification>> liveData = new MutableLiveData<>();
 
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_NOTIFICATIONS)
+        Task<QuerySnapshot> personalTask = FirebaseUtils.getFirestore()
+                .collection(Constants.COLLECTION_NOTIFICATIONS)
                 .whereEqualTo("userId", uid)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    List<Notification> notifications = new ArrayList<>();
-                    querySnapshot.forEach(doc -> {
-                        Notification notification = doc.toObject(Notification.class);
-                        notification.setNotificationId(doc.getId());
-                        notifications.add(notification);
-                    });
-                    liveData.setValue(notifications);
-                })
-                .addOnFailureListener(e -> liveData.setValue(new ArrayList<>()));
+                .get();
+
+        Task<QuerySnapshot> broadcastTask = FirebaseUtils.getFirestore()
+                .collection(Constants.COLLECTION_NOTIFICATIONS)
+                .whereEqualTo("userId", null)
+                .get();
+
+        Tasks.whenAllSuccess(personalTask, broadcastTask).addOnSuccessListener(results -> {
+            List<Notification> notifications = new ArrayList<>();
+            for (Object result : results) {
+                QuerySnapshot querySnapshot = (QuerySnapshot) result;
+                querySnapshot.forEach(doc -> {
+                    Notification notification = doc.toObject(Notification.class);
+                    notification.setNotificationId(doc.getId());
+                    notifications.add(notification);
+                });
+            }
+            
+            // Sort by createdAt DESCENDING
+            Collections.sort(notifications, (n1, n2) -> {
+                if (n1.getCreatedAt() == null || n2.getCreatedAt() == null) return 0;
+                return n2.getCreatedAt().compareTo(n1.getCreatedAt());
+            });
+            
+            liveData.setValue(notifications);
+        }).addOnFailureListener(e -> {
+            Log.e("NotificationRepository", "Error getting notifications", e);
+            liveData.setValue(new ArrayList<>());
+        });
 
         return liveData;
     }

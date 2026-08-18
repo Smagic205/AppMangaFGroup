@@ -120,6 +120,7 @@ public class BookDetailActivity extends AppCompatActivity {
                 }
                 // Reset state to avoid re-triggering on rotation
                 isBuyNowMode = false; 
+                viewModel.resetAddToCartStatus();
             }
         });
 

@@ -57,13 +57,28 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <ImageButton
-                        android:id="@+id/ib_notification"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:src="@drawable/ic_bell"
-                        app:tint="@color/white" />
+                    <FrameLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content">
+
+                        <ImageButton
+                            android:id="@+id/ib_notification"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:src="@drawable/ic_bell"
+                            app:tint="@color/white" />
+
+                        <View
+                            android:id="@+id/v_notification_dot"
+                            android:layout_width="10dp"
+                            android:layout_height="10dp"
+                            android:layout_gravity="top|end"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginEnd="8dp"
+                            android:background="@drawable/bg_red_dot"
+                            android:visibility="gone" />
+                    </FrameLayout>
                 </LinearLayout>
 
                 <!-- Search bar -->

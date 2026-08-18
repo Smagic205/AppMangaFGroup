@@ -223,6 +223,17 @@ public class SearchActivity extends AppCompatActivity {
 
         cgSortOptions.setOnCheckedStateChangeListener((group, checkedIds) ->
                 viewModel.searchBooks(etSearch.getText().toString().trim(), activeCategoryId, currentSortKey()));
+
+        tvActiveCategoryChip.setOnClickListener(v -> {
+            activeCategoryId = null;
+            llActiveFilter.setVisibility(View.GONE);
+            viewModel.searchBooks(etSearch.getText().toString().trim(), activeCategoryId, currentSortKey());
+            
+            // Nếu không có keyword và không phải Featured, thì quay về màn hình browse
+            if (etSearch.getText().toString().trim().isEmpty() && !isFeaturedOnly) {
+                showBrowseSection();
+            }
+        });
     }
 
     private void runSearchFromKeyword(String keyword) {
@@ -258,7 +269,7 @@ public class SearchActivity extends AppCompatActivity {
     private void showActiveCategoryFilter() {
         for (Category category : categoryList) {
             if (category.getCategoryId().equals(activeCategoryId)) {
-                tvActiveCategoryChip.setText(category.getName());
+                tvActiveCategoryChip.setText(category.getName() + "  ✕");
                 break;
             }
         }

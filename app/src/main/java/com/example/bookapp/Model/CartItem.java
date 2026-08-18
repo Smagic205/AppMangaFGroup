@@ -57,4 +57,17 @@ public class CartItem {
     public double getSubTotal() {
         return priceAtAdd * quantity;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CartItem cartItem = (CartItem) o;
+        return bookId != null ? bookId.equals(cartItem.bookId) : cartItem.bookId == null;
+    }
+
+    @Override
+    public int hashCode() {
+        return bookId != null ? bookId.hashCode() : 0;
+    }
 }

@@ -25,12 +25,12 @@ public class CartViewModel extends ViewModel {
 
     private final MutableLiveData<List<CartItem>> _cartItems = new MutableLiveData<>();
     private final MutableLiveData<Map<String, String[]>> _bookInfoCache = new MutableLiveData<>(new HashMap<>());
-    private final MutableLiveData<Integer> _removeSuccessPosition = new MutableLiveData<>();
+    private final MutableLiveData<String> _removeSuccessBookId = new MutableLiveData<>();
     private final MutableLiveData<String> _errorMessage = new MutableLiveData<>();
 
     public LiveData<List<CartItem>> getCartItems() { return _cartItems; }
     public LiveData<Map<String, String[]>> getBookInfoCache() { return _bookInfoCache; }
-    public LiveData<Integer> getRemoveSuccessPosition() { return _removeSuccessPosition; }
+    public LiveData<String> getRemoveSuccessBookId() { return _removeSuccessBookId; }
     public LiveData<String> getErrorMessage() { return _errorMessage; }
 
     public void loadCart(String uid) {
@@ -77,7 +77,7 @@ public class CartViewModel extends ViewModel {
         });
     }
 
-    public void removeItem(String uid, CartItem item, int position) {
+    public void removeItem(String uid, CartItem item) {
         cartRepository.removeCartItem(uid, item.getBookId(), new FirebaseCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
@@ -86,7 +86,7 @@ public class CartViewModel extends ViewModel {
                     current.remove(item);
                     _cartItems.setValue(current);
                 }
-                _removeSuccessPosition.setValue(position);
+                _removeSuccessBookId.setValue(item.getBookId());
             }
 
             @Override

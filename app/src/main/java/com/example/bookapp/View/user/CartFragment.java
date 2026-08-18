@@ -76,10 +76,9 @@ public class CartFragment extends Fragment {
             }
         });
 
-        viewModel.getRemoveSuccessPosition().observe(getViewLifecycleOwner(), position -> {
-            if (position != null) {
-                adapter.getSelectedIds().remove(cartItemList.isEmpty() ? "" :
-                        (position < cartItemList.size() ? cartItemList.get(position).getBookId() : ""));
+        viewModel.getRemoveSuccessBookId().observe(getViewLifecycleOwner(), bookId -> {
+            if (bookId != null) {
+                adapter.getSelectedIds().remove(bookId);
                 adapter.notifyDataSetChanged();
                 updateEmptyState();
                 recalculateTotal();
@@ -121,7 +120,7 @@ public class CartFragment extends Fragment {
             @Override
             public void onRemove(CartItem item, int position) {
                 String uid = FirebaseUtils.getCurrentUserId();
-                if (uid != null) viewModel.removeItem(uid, item, position);
+                if (uid != null) viewModel.removeItem(uid, item);
             }
 
             @Override

@@ -19,6 +19,7 @@ import com.example.bookapp.ViewModel.NotificationViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
+import android.content.Intent;
 
 public class NotificationActivity extends AppCompatActivity {
 
@@ -48,8 +49,12 @@ public class NotificationActivity extends AppCompatActivity {
             if (!notification.isRead()) {
                 viewModel.markAsRead(notification);
             }
-            // TODO: điều hướng theo notification.getType() nếu cần
-            // (vd type == "order" -> mở OrderDetailActivity)
+            if (com.example.bookapp.Utils.Constants.NOTIF_TYPE_ORDER.equals(notification.getType())
+                    && notification.getRelatedId() != null) {
+                Intent intent = new Intent(this, OrderDetailActivity.class);
+                intent.putExtra(OrderDetailActivity.EXTRA_ORDER_ID, notification.getRelatedId());
+                startActivity(intent);
+            }
         });
         rvNotifications.setAdapter(adapter);
 
