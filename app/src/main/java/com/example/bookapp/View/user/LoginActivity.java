@@ -33,6 +33,9 @@ public class LoginActivity extends AppCompatActivity {
 
     private LoginViewModel viewModel;
 
+    private com.google.android.gms.auth.api.signin.GoogleSignInClient mGoogleSignInClient;
+    private androidx.activity.result.ActivityResultLauncher<Intent> googleSignInLauncher;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -89,7 +92,44 @@ public class LoginActivity extends AppCompatActivity {
 
         btnLogin.setOnClickListener(v -> doLogin());
 
-        // TODO: btn_google_login khi wiring Google Sign-In thật
+        // Google Sign-In setup
+        com.google.android.gms.auth.api.signin.GoogleSignInOptions gso = new com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build();
+        mGoogleSignInClient = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(this, gso);
+
+        googleSignInLauncher = registerForActivityResult(
+                new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK) {
+                        Intent data = result.getData();
+                        try {
+                            com.google.android.gms.auth.api.signin.GoogleSignInAccount account = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(data).getResult(com.google.android.gms.common.api.ApiException.class);
+                            if (account != null) {
+                                firebaseAuthWithGoogle(account.getIdToken());
+                            }
+                        } catch (com.google.android.gms.common.api.ApiException e) {
+                            setLoading(false);
+                            Toast.makeText(this, "Đăng nhập Google thất bại: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        setLoading(false);
+                    }
+                }
+        );
+
+        Button btnGoogleLogin = findViewById(R.id.btn_google_login);
+        btnGoogleLogin.setOnClickListener(v -> {
+            setLoading(true);
+            Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+            googleSignInLauncher.launch(signInIntent);
+        });
+    }
+
+    private void firebaseAuthWithGoogle(String idToken) {
+        com.google.firebase.auth.AuthCredential credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(idToken, null);
+        viewModel.loginWithGoogle(credential);
     }
 
     @Override

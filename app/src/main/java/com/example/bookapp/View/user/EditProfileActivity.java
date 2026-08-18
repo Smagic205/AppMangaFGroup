@@ -132,6 +132,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
     private void showDatePicker() {
         new DatePickerDialog(this,
+                R.style.CustomDatePickerTheme,
                 (view, year, month, dayOfMonth) -> {
                     birthdayCalendar.set(year, month, dayOfMonth);
                     updateBirthdayText();

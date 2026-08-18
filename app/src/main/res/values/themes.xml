@@ -54,4 +54,16 @@
     <style name="CircleImageViewStyle">
         <item name="cornerSize">50%</item>
     </style>
+
+    <!-- Custom DatePicker Theme -->
+    <style name="CustomDatePickerTheme" parent="Theme.MaterialComponents.Light.Dialog">
+        <item name="android:datePickerStyle">@style/CustomDatePickerStyle</item>
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorAccent">@color/primary</item>
+    </style>
+
+    <style name="CustomDatePickerStyle" parent="android:Widget.Material.Light.DatePicker">
+        <item name="android:datePickerMode">spinner</item>
+        <item name="android:calendarViewShown">false</item>
+    </style>
 </resources>

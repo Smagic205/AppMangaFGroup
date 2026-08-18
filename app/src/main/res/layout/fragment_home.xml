@@ -123,13 +123,23 @@
             android:orientation="vertical"
             android:paddingBottom="24dp">
 
-            <!-- Banner slider -->
-            <androidx.viewpager2.widget.ViewPager2
-                android:id="@+id/vp_banner"
+            <!-- Banner slider with aspect ratio 891:293 -->
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
-                android:layout_height="150dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:layout_marginHorizontal="16dp" />
+                android:layout_marginHorizontal="16dp">
+
+                <androidx.viewpager2.widget.ViewPager2
+                    android:id="@+id/vp_banner"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintDimensionRatio="891:293" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/tab_banner_indicator"

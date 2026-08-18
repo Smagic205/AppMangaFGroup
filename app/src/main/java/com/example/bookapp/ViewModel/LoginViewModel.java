@@ -27,4 +27,13 @@ public class LoginViewModel extends ViewModel {
                 .addOnSuccessListener(authResult -> _loginSuccess.setValue(true))
                 .addOnFailureListener(e -> _errorMessage.setValue(e.getMessage()));
     }
+
+    /**
+     * Gọi Firebase Auth signInWithCredential cho đăng nhập Google.
+     */
+    public void loginWithGoogle(com.google.firebase.auth.AuthCredential credential) {
+        FirebaseUtils.getAuth().signInWithCredential(credential)
+                .addOnSuccessListener(authResult -> _loginSuccess.setValue(true))
+                .addOnFailureListener(e -> _errorMessage.setValue(e.getMessage()));
+    }
 }

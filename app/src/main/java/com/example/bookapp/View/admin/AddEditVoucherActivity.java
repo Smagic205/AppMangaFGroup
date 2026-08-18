@@ -101,7 +101,7 @@ public class AddEditVoucherActivity extends AdminBaseActivity {
         Date existing = isStartDate ? selectedStartDate : selectedEndDate;
         if (existing != null) cal.setTime(existing);
 
-        new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+        new DatePickerDialog(this, R.style.CustomDatePickerTheme, (view, year, month, dayOfMonth) -> {
             Calendar picked = Calendar.getInstance();
             picked.set(year, month, dayOfMonth, 0, 0, 0);
             Date pickedDate = picked.getTime();

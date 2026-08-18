@@ -72,4 +72,7 @@ dependencies {
 
 // xử lí up up ảnh
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+// Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
 }

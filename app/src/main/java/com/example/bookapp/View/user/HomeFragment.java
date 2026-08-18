@@ -125,9 +125,9 @@ public class HomeFragment extends Fragment {
     private void setupBanner() {
         List<String> bannerUrls = new ArrayList<>();
         // Mẫu ảnh banner (từ fahasa hoặc tự thiết kế)
-        bannerUrls.add("https://cdn0.fahasa.com/media/magentothem/banner7/TuanLeNhaNam_0824_Slide_840x320.jpg");
-        bannerUrls.add("https://cdn0.fahasa.com/media/magentothem/banner7/TrangCT_T9_840x320.jpg");
-        bannerUrls.add("https://cdn0.fahasa.com/media/magentothem/banner7/MCBooks_T9_840x320.jpg");
+        bannerUrls.add("https://lgwiftzrrebphjymvbbc.supabase.co/storage/v1/object/public/banner/banner_1.jpg");
+        bannerUrls.add("https://lgwiftzrrebphjymvbbc.supabase.co/storage/v1/object/public/banner/banner_2.jpg");
+        bannerUrls.add("https://lgwiftzrrebphjymvbbc.supabase.co/storage/v1/object/public/banner/banner_3.jpg");
 
         com.example.bookapp.Adapter.user.BannerAdapter adapter = new com.example.bookapp.Adapter.user.BannerAdapter(bannerUrls);
         vpBanner.setAdapter(adapter);
