@@ -37,6 +37,7 @@ public class HomeFragment extends Fragment {
     private ImageButton ibNotification;
     private View vNotificationDot;
     private de.hdodenhof.circleimageview.CircleImageView ivUserAvatar;
+    private com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton fabChatbot;
 
     private androidx.viewpager2.widget.ViewPager2 vpBanner;
     private com.google.android.material.tabs.TabLayout tabBannerIndicator;
@@ -132,6 +133,7 @@ public class HomeFragment extends Fragment {
         ibNotification = view.findViewById(R.id.ib_notification);
         vNotificationDot = view.findViewById(R.id.v_notification_dot);
         ivUserAvatar = view.findViewById(R.id.iv_user_avatar);
+        fabChatbot = view.findViewById(R.id.fab_chatbot);
     }
 
     private void setupBanner() {
@@ -175,6 +177,9 @@ public class HomeFragment extends Fragment {
             intent.putExtra(SearchActivity.EXTRA_FEATURED, true);
             startActivity(intent);
         });
+        if (fabChatbot != null) {
+            fabChatbot.setOnClickListener(v -> startActivity(new Intent(getContext(), ChatBotActivity.class)));
+        }
     }
 
     private void openBookDetail(Book book) {

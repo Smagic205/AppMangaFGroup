@@ -297,4 +297,20 @@
         android:indeterminateTint="@color/primary"
         android:visibility="gone" />
 
+    <!-- AI Chatbot Floating Action Button -->
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/fab_chatbot"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="@color/primary"
+        android:text="AI Tư vấn"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        app:elevation="6dp"
+        app:icon="@drawable/ic_robot"
+        app:iconTint="@color/white" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

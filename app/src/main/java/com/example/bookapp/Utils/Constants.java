@@ -85,4 +85,10 @@ public class Constants {
     public static final String EXTRA_PUBLISHER_ID = "extra_publisher_id";
     public static final String EXTRA_MODE_EDIT = "extra_mode_edit";
 
+    // ===== GOOGLE GEMINI AI CONFIGURATION (Chạy trực tiếp trên Android, không cần server riêng) =====
+    public static final String GEMINI_API_KEY = "AQ.Ab8RN6IlKJfp-qsFhmU20OhUG9lHYUh3wjmCbXEJ-ynQDnTwyQ";
+    public static final String GEMINI_MODEL = "gemini-3.1-flash-lite";
+    public static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/"
+            + GEMINI_MODEL + ":generateContent?key=" + GEMINI_API_KEY;
+
 }
