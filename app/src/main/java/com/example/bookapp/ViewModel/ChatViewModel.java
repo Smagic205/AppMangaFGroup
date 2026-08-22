@@ -27,7 +27,7 @@ public class ChatViewModel extends ViewModel {
     public ChatViewModel() {
         this.repository = new ChatRepository();
         this.sessionId = "session_" + UUID.randomUUID().toString().substring(0, 8);
-        initWelcomeMessage();
+        loadChatHistory();
     }
 
     private void initWelcomeMessage() {
@@ -39,6 +39,24 @@ public class ChatViewModel extends ViewModel {
         );
         list.add(welcomeMsg);
         messagesLiveData.setValue(list);
+    }
+
+    /**
+     * Nạp lại lịch sử chat đã lưu từ Cloud Firestore khi mở màn hình.
+     */
+    public void loadChatHistory() {
+        String uid = FirebaseUtils.getCurrentUserId();
+        if (uid != null && !uid.trim().isEmpty()) {
+            repository.loadChatHistory(uid, history -> {
+                if (history != null && !history.isEmpty()) {
+                    messagesLiveData.setValue(new ArrayList<>(history));
+                } else {
+                    initWelcomeMessage();
+                }
+            });
+        } else {
+            initWelcomeMessage();
+        }
     }
 
     public LiveData<List<ChatMessage>> getMessages() {
@@ -60,16 +78,20 @@ public class ChatViewModel extends ViewModel {
         List<ChatMessage> currentList = messagesLiveData.getValue();
         if (currentList == null) currentList = new ArrayList<>();
 
+        String uid = FirebaseUtils.getCurrentUserId();
+
         // 1. Thêm tin nhắn của User
-        currentList.add(new ChatMessage(cleanText, ChatMessage.TYPE_USER));
+        ChatMessage userMessage = new ChatMessage(cleanText, ChatMessage.TYPE_USER);
+        currentList.add(userMessage);
+
+        // Lưu tin nhắn User vào Firestore
+        repository.saveChatMessage(uid, userMessage);
 
         // 2. Thêm tin nhắn Loading Typing của Bot
         ChatMessage loadingMessage = ChatMessage.createLoadingMessage();
         currentList.add(loadingMessage);
         messagesLiveData.setValue(new ArrayList<>(currentList));
         isTypingLiveData.setValue(true);
-
-        String uid = FirebaseUtils.getCurrentUserId();
 
         // 3. Gửi lên Chatbot Server
         repository.sendMessage(uid, sessionId, cleanText, new ChatRepository.ChatCallback() {
@@ -84,6 +106,9 @@ public class ChatViewModel extends ViewModel {
                     // Thêm tin nhắn bot trả về
                     list.add(botResponse);
                     messagesLiveData.setValue(new ArrayList<>(list));
+
+                    // Lưu tin nhắn Bot vào Firestore
+                    repository.saveChatMessage(uid, botResponse);
                 }
                 isTypingLiveData.setValue(false);
             }
@@ -111,8 +136,10 @@ public class ChatViewModel extends ViewModel {
     }
 
     public void clearHistory() {
-        repository.resetSession(sessionId);
-        this.sessionId = "session_" + UUID.randomUUID().toString().substring(0, 8);
-        initWelcomeMessage();
+        String uid = FirebaseUtils.getCurrentUserId();
+        repository.clearChatHistory(uid, () -> {
+            this.sessionId = "session_" + UUID.randomUUID().toString().substring(0, 8);
+            initWelcomeMessage();
+        });
     }
 }

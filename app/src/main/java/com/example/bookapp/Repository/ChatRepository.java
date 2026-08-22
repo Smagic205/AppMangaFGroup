@@ -246,8 +246,124 @@ public class ChatRepository {
         });
     }
 
+    public interface HistoryCallback {
+        void onLoaded(List<ChatMessage> history);
+    }
+
     /**
-     * Xóa lịch sử phiên hội thoại hiện tại.
+     * Nạp lịch sử hội thoại đã lưu từ Cloud Firestore cho tài khoản người dùng hiện tại.
+     */
+    public void loadChatHistory(String userId, HistoryCallback callback) {
+        if (userId == null || userId.trim().isEmpty()) {
+            mainHandler.post(() -> callback.onLoaded(new ArrayList<>()));
+            return;
+        }
+
+        executorService.execute(() -> {
+            try {
+                QuerySnapshot snapshot = Tasks.await(
+                        FirebaseUtils.getFirestore()
+                                .collection(Constants.COLLECTION_USERS)
+                                .document(userId)
+                                .collection("chat_history")
+                                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING)
+                                .limit(50)
+                                .get(),
+                        10, TimeUnit.SECONDS
+                );
+
+                List<ChatMessage> list = new ArrayList<>();
+                conversationHistory.clear();
+
+                for (QueryDocumentSnapshot doc : snapshot) {
+                    ChatMessage msg = doc.toObject(ChatMessage.class);
+                    if (msg != null) {
+                        msg.setMessageId(doc.getId());
+                        list.add(msg);
+
+                        // Đồng bộ ngữ cảnh hội thoại vào bộ nhớ Gemini
+                        if (msg.getText() != null && !msg.getText().isEmpty()) {
+                            JSONObject turn = new JSONObject();
+                            turn.put("role", msg.isUser() ? "user" : "model");
+                            JSONArray parts = new JSONArray();
+                            JSONObject p = new JSONObject();
+                            p.put("text", msg.getText());
+                            parts.put(p);
+                            turn.put("parts", parts);
+                            conversationHistory.add(turn);
+                        }
+                    }
+                }
+
+                mainHandler.post(() -> callback.onLoaded(list));
+            } catch (Exception e) {
+                Log.e(TAG, "Lỗi nạp lịch sử chat từ Firestore: ", e);
+                mainHandler.post(() -> callback.onLoaded(new ArrayList<>()));
+            }
+        });
+    }
+
+    /**
+     * Lưu tin nhắn (User hoặc Bot) vào Cloud Firestore của người dùng.
+     */
+    public void saveChatMessage(String userId, ChatMessage message) {
+        if (userId == null || userId.trim().isEmpty() || message == null || message.isLoading()) {
+            return;
+        }
+
+        executorService.execute(() -> {
+            try {
+                String msgId = message.getMessageId();
+                if (msgId == null || msgId.isEmpty()) {
+                    msgId = "msg_" + message.getTimestamp() + "_" + (message.isUser() ? "usr" : "bot");
+                    message.setMessageId(msgId);
+                }
+
+                FirebaseUtils.getFirestore()
+                        .collection(Constants.COLLECTION_USERS)
+                        .document(userId)
+                        .collection("chat_history")
+                        .document(msgId)
+                        .set(message);
+            } catch (Exception e) {
+                Log.e(TAG, "Lỗi lưu tin nhắn chat lên Firestore: ", e);
+            }
+        });
+    }
+
+    /**
+     * Xóa toàn bộ lịch sử tin nhắn của người dùng trên Cloud Firestore.
+     */
+    public void clearChatHistory(String userId, Runnable onComplete) {
+        conversationHistory.clear();
+        if (userId == null || userId.trim().isEmpty()) {
+            if (onComplete != null) mainHandler.post(onComplete);
+            return;
+        }
+
+        executorService.execute(() -> {
+            try {
+                QuerySnapshot snapshot = Tasks.await(
+                        FirebaseUtils.getFirestore()
+                                .collection(Constants.COLLECTION_USERS)
+                                .document(userId)
+                                .collection("chat_history")
+                                .get(),
+                        10, TimeUnit.SECONDS
+                );
+
+                for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                    doc.getReference().delete();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Lỗi xóa lịch sử chat: ", e);
+            }
+            if (onComplete != null) mainHandler.post(onComplete);
+        });
+    }
+
+    /**
+     * Xóa lịch sử phiên hội thoại hiện tại trong bộ nhớ RAM.
      */
     public void resetSession(String sessionId) {
         conversationHistory.clear();
