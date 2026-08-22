@@ -45,6 +45,11 @@ public class ChatRepository {
     private static final int MAX_TURNS = 5;
     private static final int MAX_HISTORY_TURNS = 20;
 
+    // Google Gemini Embedding Model (Semantic Vector Search 3072 dimensions)
+    private static final String EMBEDDING_MODEL = "gemini-embedding-001";
+    private static final String EMBEDDING_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/"
+            + EMBEDDING_MODEL + ":embedContent?key=" + Constants.GEMINI_API_KEY;
+
     private static final String SYSTEM_INSTRUCTION =
             "Bạn là Trợ lý Tư vấn Sách Thông minh của nhà sách Thunder Book.\n" +
             "Nhiệm vụ của bạn là lắng nghe nhu cầu của độc giả, tìm kiếm và tư vấn những cuốn sách phù hợp nhất.\n\n" +
@@ -65,6 +70,7 @@ public class ChatRepository {
     private final ExecutorService executorService;
     private final Handler mainHandler;
     private final List<JSONObject> conversationHistory = new ArrayList<>();
+    private final java.util.Map<String, double[]> bookEmbeddingCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ChatRepository() {
         this.httpClient = new OkHttpClient.Builder()
@@ -328,7 +334,13 @@ public class ChatRepository {
                     );
                 }
 
-                List<BookMatch> scoredBooks = new ArrayList<>();
+                // 1. Tạo Embedding Vector cho từ khóa truy vấn (Semantic Vector Search)
+                double[] queryVector = null;
+                if (!keyword.isEmpty()) {
+                    queryVector = getEmbeddingVector(keyword);
+                }
+
+                List<BookMatch> candidateBooks = new ArrayList<>();
                 for (QueryDocumentSnapshot doc : snapshot) {
                     Book book = doc.toObject(Book.class);
                     book.setBookId(doc.getId());
@@ -349,20 +361,49 @@ public class ChatRepository {
                         continue;
                     }
 
-                    // Tính điểm khớp theo từ khóa & thể loại
-                    double score = calculateMatchScore(book, keyword, genre);
-                    if (score > 0) {
-                        scoredBooks.add(new BookMatch(book, score));
+                    // Điểm ban đầu (Lexical + Cached Embedding nếu có)
+                    String cacheKey = book.getBookId() != null ? book.getBookId() : book.getTitle();
+                    double[] bookVector = cacheKey != null ? bookEmbeddingCache.get(cacheKey) : null;
+                    double initialScore = calculateMatchScore(book, keyword, genre, queryVector, bookVector);
+                    candidateBooks.add(new BookMatch(book, initialScore));
+                }
+
+                // Sắp xếp sơ bộ các ứng viên tiềm năng nhất
+                Collections.sort(candidateBooks, (a, b) -> Double.compare(b.score, a.score));
+
+                // 2. Chỉ tính thêm Embedding cho top 5 ứng viên chưa có trong cache để tối ưu tốc độ và không vượt rate limit
+                List<BookMatch> finalScoredBooks = new ArrayList<>();
+                int topCheckLimit = Math.min(8, candidateBooks.size());
+                for (int i = 0; i < topCheckLimit; i++) {
+                    Book book = candidateBooks.get(i).book;
+                    String cacheKey = book.getBookId() != null ? book.getBookId() : book.getTitle();
+                    double[] bookVector = cacheKey != null ? bookEmbeddingCache.get(cacheKey) : null;
+
+                    if (queryVector != null && bookVector == null) {
+                        String bookText = (book.getTitle() != null ? book.getTitle() : "") + ". "
+                                + (book.getDescription() != null ? book.getDescription() : "");
+                        if (book.getTags() != null && !book.getTags().isEmpty()) {
+                            bookText += " Thể loại: " + String.join(", ", book.getTags());
+                        }
+                        bookVector = getEmbeddingVector(bookText);
+                        if (bookVector != null && cacheKey != null) {
+                            bookEmbeddingCache.put(cacheKey, bookVector);
+                        }
+                    }
+
+                    double finalScore = calculateMatchScore(book, keyword, genre, queryVector, bookVector);
+                    if (finalScore > 0) {
+                        finalScoredBooks.add(new BookMatch(book, finalScore));
                     }
                 }
 
-                // Sắp xếp sách theo điểm phù hợp nhất
-                Collections.sort(scoredBooks, (a, b) -> Double.compare(b.score, a.score));
+                // Sắp xếp lại theo điểm chính xác nhất
+                Collections.sort(finalScoredBooks, (a, b) -> Double.compare(b.score, a.score));
 
                 JSONArray booksArray = new JSONArray();
-                int limit = Math.min(5, scoredBooks.size());
+                int limit = Math.min(5, finalScoredBooks.size());
                 for (int i = 0; i < limit; i++) {
-                    Book b = scoredBooks.get(i).book;
+                    Book b = finalScoredBooks.get(i).book;
                     outSuggestedBooks.add(b);
 
                     JSONObject bObj = new JSONObject();
@@ -378,7 +419,7 @@ public class ChatRepository {
                     booksArray.put(bObj);
                 }
 
-                result.put("total_found", scoredBooks.size());
+                result.put("total_found", finalScoredBooks.size());
                 result.put("books", booksArray);
 
             } else if ("check_stock".equals(functionName)) {
@@ -451,11 +492,88 @@ public class ChatRepository {
     }
 
     /**
-     * Thuật toán tính điểm khớp từ khóa tìm kiếm sách thông minh (hỗ trợ tiếng Việt không dấu & có dấu).
+     * Gọi Google Gemini Embedding Model (gemini-embedding-001) để biến văn bản thành Vector 3072 chiều.
      */
-    private double calculateMatchScore(Book book, String keyword, String genre) {
+    public double[] getEmbeddingVector(String text) {
+        if (text == null || text.trim().isEmpty()) return null;
+        try {
+            JSONObject contentObj = new JSONObject();
+            JSONArray partsArray = new JSONArray();
+            JSONObject part = new JSONObject();
+            part.put("text", text.trim());
+            partsArray.put(part);
+            contentObj.put("parts", partsArray);
+
+            JSONObject payload = new JSONObject();
+            payload.put("model", "models/" + EMBEDDING_MODEL);
+            payload.put("content", contentObj);
+
+            RequestBody requestBody = RequestBody.create(payload.toString(), JSON_MEDIA_TYPE);
+            Request request = new Request.Builder()
+                    .url(EMBEDDING_API_URL)
+                    .post(requestBody)
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    Log.w(TAG, "Embedding API warning code: " + response.code());
+                    return null;
+                }
+                JSONObject resObj = new JSONObject(response.body().string());
+                JSONObject embeddingObj = resObj.optJSONObject("embedding");
+                if (embeddingObj != null) {
+                    JSONArray values = embeddingObj.optJSONArray("values");
+                    if (values != null && values.length() > 0) {
+                        double[] vector = new double[values.length()];
+                        for (int i = 0; i < values.length(); i++) {
+                            vector[i] = values.getDouble(i);
+                        }
+                        return vector;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Không thể lấy Embedding Vector (sẽ fallback sang Lexical match): " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Tính toán khoảng cách Cosine Similarity giữa 2 Vector Embedding (0.0 -> 1.0).
+     */
+    public double calculateCosineSimilarity(double[] v1, double[] v2) {
+        if (v1 == null || v2 == null || v1.length == 0 || v2.length == 0 || v1.length != v2.length) {
+            return 0.0;
+        }
+        double dotProduct = 0.0;
+        double normA = 0.0;
+        double normB = 0.0;
+        for (int i = 0; i < v1.length; i++) {
+            dotProduct += v1[i] * v2[i];
+            normA += v1[i] * v1[i];
+            normB += v2[i] * v2[i];
+        }
+        if (normA <= 0 || normB <= 0) return 0.0;
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    /**
+     * Thuật toán Hybrid Search: Kết hợp Vector Semantic Embedding và Lexical Keyword tiếng Việt.
+     */
+    private double calculateMatchScore(Book book, String keyword, String genre, double[] queryVector, double[] bookVector) {
         if ((keyword == null || keyword.isEmpty()) && (genre == null || genre.isEmpty())) {
             return 1.0 + (book.getRating() * 2) + (book.getSoldCount() * 0.05);
+        }
+
+        double score = 0.0;
+
+        // 1. Điểm tương đồng ngữ nghĩa Vector Embedding (Semantic Similarity)
+        if (queryVector != null && bookVector != null) {
+            double sim = calculateCosineSimilarity(queryVector, bookVector);
+            if (sim > 0.45) {
+                // Thang điểm semantic từ 0 -> 45 điểm
+                score += (sim - 0.45) * 110.0;
+            }
         }
 
         String normTitle = stripAccents(book.getTitle() != null ? book.getTitle() : "");
@@ -469,49 +587,46 @@ public class ChatRepository {
         }
         String normTags = stripAccents(tagsBuilder.toString());
 
-        double score = 0.0;
-
-        // 1. Khớp nguyên cụm từ khóa (Phrase match)
+        // 2. Khớp nguyên cụm từ khóa (Phrase match)
         if (keyword != null && !keyword.isEmpty()) {
             String normKeyword = stripAccents(keyword);
             if (normTitle.contains(normKeyword)) {
-                score += 60.0;
+                score += 50.0;
             }
             if (normTags.contains(normKeyword)) {
-                score += 35.0;
+                score += 30.0;
             }
             if (normDesc.contains(normKeyword)) {
-                score += 25.0;
+                score += 20.0;
             }
 
-            // 2. Khớp từng từ đơn (Token match)
+            // 3. Khớp từng từ đơn (Token match)
             String[] tokens = normKeyword.split("\\s+");
             for (String t : tokens) {
                 if (t.length() <= 1) continue;
-                // Bỏ qua các hư từ / từ dừng phổ biến
                 if (isStopWord(t)) continue;
 
                 if (normTitle.contains(t)) {
-                    score += 15.0;
+                    score += 12.0;
                 }
                 if (normTags.contains(t)) {
-                    score += 10.0;
+                    score += 8.0;
                 }
                 if (normDesc.contains(t)) {
-                    score += 4.0;
+                    score += 3.0;
                 }
             }
         }
 
-        // 3. Khớp thể loại (Genre match)
+        // 4. Khớp thể loại (Genre match)
         if (genre != null && !genre.isEmpty()) {
             String normGenre = stripAccents(genre);
             if (normDesc.contains(normGenre) || normTitle.contains(normGenre) || normTags.contains(normGenre)) {
-                score += 30.0;
+                score += 25.0;
             }
         }
 
-        // 4. Cộng điểm uy tín từ đánh giá & số lượng đã bán
+        // 5. Cộng điểm uy tín từ đánh giá & số lượng đã bán
         if (score > 0) {
             score += (book.getRating() * 2.0) + (book.getSoldCount() * 0.05);
         }
