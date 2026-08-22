@@ -51,22 +51,35 @@ public class AdminVoucherRepository {
         return map;
     }
 
-    /** Realtime toàn bộ voucher — dùng cho ManageVoucherActivity. */
     public LiveData<List<Voucher>> observeAllVouchers() {
-        MutableLiveData<List<Voucher>> liveData = new MutableLiveData<>();
-        vouchersRef.addSnapshotListener((snapshots, error) -> {
-            if (error != null || snapshots == null) {
-                liveData.setValue(new ArrayList<>());
-                return;
+        return new LiveData<List<Voucher>>() {
+            private com.google.firebase.firestore.ListenerRegistration registration;
+
+            @Override
+            protected void onActive() {
+                super.onActive();
+                if (registration == null) {
+                    registration = vouchersRef.addSnapshotListener((snapshots, error) -> {
+                        if (error != null || snapshots == null) return;
+                        List<Voucher> list = new ArrayList<>();
+                        for (DocumentSnapshot doc : snapshots.getDocuments()) {
+                            Voucher v = fromDoc(doc);
+                            if (v != null) list.add(v);
+                        }
+                        setValue(list);
+                    });
+                }
             }
-            List<Voucher> list = new ArrayList<>();
-            for (DocumentSnapshot doc : snapshots.getDocuments()) {
-                Voucher v = fromDoc(doc);
-                if (v != null) list.add(v);
+
+            @Override
+            protected void onInactive() {
+                super.onInactive();
+                if (registration != null) {
+                    registration.remove();
+                    registration = null;
+                }
             }
-            liveData.setValue(list);
-        });
-        return liveData;
+        };
     }
 
     /** Lấy 1 lần — dùng khi mở AddEditVoucherActivity ở chế độ Sửa. */
@@ -78,17 +91,42 @@ public class AdminVoucherRepository {
     }
 
     public void addVoucher(@NonNull Voucher voucher, FirebaseCallback<Void> callback) {
-        DocumentReference docRef = vouchersRef.document();
-        voucher.setVoucherId(docRef.getId());
-        docRef.set(toMap(voucher))
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(callback::onFailure);
+        String code = voucher.getCode().trim().toUpperCase();
+        voucher.setCode(code);
+
+        vouchersRef.whereEqualTo("code", code).get().addOnSuccessListener(snapshots -> {
+            if (!snapshots.isEmpty()) {
+                callback.onFailure(new Exception("Mã Voucher đã tồn tại"));
+                return;
+            }
+            DocumentReference docRef = vouchersRef.document();
+            voucher.setVoucherId(docRef.getId());
+            docRef.set(toMap(voucher))
+                    .addOnSuccessListener(unused -> callback.onSuccess(null))
+                    .addOnFailureListener(callback::onFailure);
+        }).addOnFailureListener(callback::onFailure);
     }
 
     public void updateVoucher(@NonNull Voucher voucher, FirebaseCallback<Void> callback) {
-        vouchersRef.document(voucher.getVoucherId()).set(toMap(voucher))
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(callback::onFailure);
+        String code = voucher.getCode().trim().toUpperCase();
+        voucher.setCode(code);
+
+        vouchersRef.whereEqualTo("code", code).get().addOnSuccessListener(snapshots -> {
+            boolean duplicate = false;
+            for (DocumentSnapshot doc : snapshots) {
+                if (!doc.getId().equals(voucher.getVoucherId())) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if (duplicate) {
+                callback.onFailure(new Exception("Mã Voucher đã tồn tại"));
+                return;
+            }
+            vouchersRef.document(voucher.getVoucherId()).set(toMap(voucher))
+                    .addOnSuccessListener(unused -> callback.onSuccess(null))
+                    .addOnFailureListener(callback::onFailure);
+        }).addOnFailureListener(callback::onFailure);
     }
 
     /** Bật/tắt nhanh bằng switch trên item_admin_voucher */
@@ -109,7 +147,9 @@ public class AdminVoucherRepository {
     public List<Voucher> sortByExpiringFirst(List<Voucher> source) {
         List<Voucher> sorted = new ArrayList<>(source);
         sorted.sort((a, b) -> {
-            if (a.getEndDate() == null || b.getEndDate() == null) return 0;
+            if (a.getEndDate() == null && b.getEndDate() == null) return 0;
+            if (a.getEndDate() == null) return 1;
+            if (b.getEndDate() == null) return -1;
             return a.getEndDate().compareTo(b.getEndDate());
         });
         return sorted;

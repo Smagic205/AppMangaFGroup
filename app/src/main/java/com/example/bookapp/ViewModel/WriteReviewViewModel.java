@@ -33,9 +33,16 @@ public class WriteReviewViewModel extends ViewModel {
     public LiveData<Boolean> getSubmitSuccess() { return _submitSuccess; }
     public LiveData<String> getErrorMessage() { return _errorMessage; }
 
+    private LiveData<Book> bookLiveData;
+    private androidx.lifecycle.Observer<Book> bookObserver;
+
     public void loadBook(String bookId) {
-        bookRepository.getBook(bookId).observeForever(
-                book -> _book.setValue(book));
+        if (bookLiveData != null && bookObserver != null) {
+            bookLiveData.removeObserver(bookObserver);
+        }
+        bookLiveData = bookRepository.getBook(bookId);
+        bookObserver = book -> _book.setValue(book);
+        bookLiveData.observeForever(bookObserver);
     }
 
     /**
@@ -44,7 +51,10 @@ public class WriteReviewViewModel extends ViewModel {
      */
     public void submitReview(String uid, String bookId, int rating,
                              String comment, String orderId) {
-        userRepository.getUser(uid).observeForever(user -> {
+        LiveData<User> userLiveData = userRepository.getUser(uid);
+        androidx.lifecycle.Observer<User>[] userObserver = new androidx.lifecycle.Observer[1];
+        userObserver[0] = user -> {
+            userLiveData.removeObserver(userObserver[0]);
             if (user == null) {
                 _errorMessage.setValue("Không lấy được thông tin người dùng");
                 return;
@@ -74,6 +84,15 @@ public class WriteReviewViewModel extends ViewModel {
                     _errorMessage.setValue(e.getMessage());
                 }
             });
-        });
+        };
+        userLiveData.observeForever(userObserver[0]);
+    }
+
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        if (bookLiveData != null && bookObserver != null) {
+            bookLiveData.removeObserver(bookObserver);
+        }
     }
 }

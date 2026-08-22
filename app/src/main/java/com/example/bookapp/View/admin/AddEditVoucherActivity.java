@@ -125,6 +125,13 @@ public class AddEditVoucherActivity extends AdminBaseActivity {
             }
         });
 
+        viewModel.getDeleteSuccess().observe(this, success -> {
+            if (Boolean.TRUE.equals(success)) {
+                Toast.makeText(this, "Đã xóa voucher", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        });
+
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null) Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
         });

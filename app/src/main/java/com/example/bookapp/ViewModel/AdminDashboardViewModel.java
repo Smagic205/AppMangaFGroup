@@ -77,16 +77,27 @@ public class AdminDashboardViewModel extends ViewModel {
         return bookRepository.getTopSellingBooks(10);
     }
 
+    private boolean isStatsLoaded = false;
+
     /**
      * Gọi 1 lần ở onCreate() Activity — tải song song 4 nguồn số liệu (đếm sách/đơn/user +
      * doanh thu tuần này), gộp thành danh sách 4 AdminDashboardStat khi ĐỦ CẢ 4 đã về, dùng
      * MediatorLiveData theo dõi nhiều nguồn cùng lúc thay vì lồng callback vào nhau.
      */
     public void loadStats() {
+        if (isStatsLoaded) return;
+        isStatsLoaded = true;
+
         Calendar cal = Calendar.getInstance();
         Date toDate = cal.getTime();
-        // Set to Monday of the current week
+        
+        cal.setFirstDayOfWeek(Calendar.MONDAY);
+        cal.getTime(); // Bắt buộc gọi để recompute week
         cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
         Date fromDate = cal.getTime();
 
         statCards.addSource(orderRepository.getRevenueInRange(fromDate, toDate), value -> {
@@ -215,8 +226,15 @@ public class AdminDashboardViewModel extends ViewModel {
         Calendar cal = Calendar.getInstance();
         Date toDate = cal.getTime();
 
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+
         switch (period) {
             case WEEK:
+                cal.setFirstDayOfWeek(Calendar.MONDAY);
+                cal.getTime();
                 cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
                 break;
             case MONTH:
@@ -262,13 +280,27 @@ public class AdminDashboardViewModel extends ViewModel {
 
                     // 2. Reset all books' soldCount to 0, then apply new counts
                     db.collection(Constants.COLLECTION_BOOKS).get().addOnSuccessListener(bookSnapshots -> {
-                        WriteBatch batch = db.batch();
+                        List<com.google.android.gms.tasks.Task<Void>> tasks = new ArrayList<>();
+                        WriteBatch currentBatch = db.batch();
+                        int opCount = 0;
+
                         for (QueryDocumentSnapshot bookDoc : bookSnapshots) {
                             int actualSales = bookSales.getOrDefault(bookDoc.getId(), 0);
-                            batch.update(bookDoc.getReference(), Constants.FIELD_SOLD_COUNT, actualSales);
+                            currentBatch.update(bookDoc.getReference(), Constants.FIELD_SOLD_COUNT, actualSales);
+                            opCount++;
+
+                            if (opCount == 500) {
+                                tasks.add(currentBatch.commit());
+                                currentBatch = db.batch();
+                                opCount = 0;
+                            }
                         }
-                        
-                        batch.commit()
+
+                        if (opCount > 0) {
+                            tasks.add(currentBatch.commit());
+                        }
+
+                        com.google.android.gms.tasks.Tasks.whenAll(tasks)
                                 .addOnSuccessListener(unused -> callback.onSuccess(null))
                                 .addOnFailureListener(callback::onFailure);
                     }).addOnFailureListener(callback::onFailure);

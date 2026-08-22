@@ -65,7 +65,6 @@ public class RoleChecker {
     public static void checkRoleSilently(Activity activity, OnRoleResult callback) {
         String uid = FirebaseUtils.getCurrentUserId();
         if (uid == null) {
-            Toast.makeText(activity, "Debug: UID is null", Toast.LENGTH_LONG).show();
             callback.onResult(false);
             return;
         }
@@ -74,14 +73,12 @@ public class RoleChecker {
                 .get()
                 .addOnSuccessListener(doc -> {
                     if (!doc.exists()) {
-                        Toast.makeText(activity, "Debug: Document không tồn tại với UID: " + uid, Toast.LENGTH_LONG).show();
                         callback.onResult(false);
                         return;
                     }
                     try {
                         User user = doc.toObject(User.class);
                         if (user == null) {
-                            Toast.makeText(activity, "Debug: toObject trả về null", Toast.LENGTH_LONG).show();
                             callback.onResult(false);
                         } else {
                             // Lưu session nội bộ để các màn hình khác (như Dashboard) có thể lấy tên/avatar
@@ -93,20 +90,16 @@ public class RoleChecker {
                             );
 
                             if (!user.isAdmin()) {
-                                Toast.makeText(activity, "Debug: user.isAdmin() là false (role hiện tại: " + user.getRole() + ")", Toast.LENGTH_LONG).show();
                                 callback.onResult(false);
                             } else {
-                                Toast.makeText(activity, "Đăng nhập Admin thành công!", Toast.LENGTH_SHORT).show();
                                 callback.onResult(true);
                             }
                         }
                     } catch (Exception ex) {
-                        Toast.makeText(activity, "CRASH MAPPING: " + ex.getMessage(), Toast.LENGTH_LONG).show();
                         callback.onResult(false);
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Toast.makeText(activity, "Debug: Lỗi get() Firestore: " + e.getMessage(), Toast.LENGTH_LONG).show();
                     callback.onResult(false);
                 });
     }

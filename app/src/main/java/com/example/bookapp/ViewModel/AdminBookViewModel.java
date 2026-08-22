@@ -149,10 +149,14 @@ public class AdminBookViewModel extends ViewModel {
         List<Book> sorted = new ArrayList<>(result);
         switch (currentSort) {
             case PRICE_ASC:
-                sorted.sort(Comparator.comparingDouble(Book::getSalePrice));
+                sorted.sort(Comparator.comparingDouble(b -> b.getSalePrice() > 0 ? b.getSalePrice() : b.getPrice()));
                 break;
             case PRICE_DESC:
-                sorted.sort((a, b) -> Double.compare(b.getSalePrice(), a.getSalePrice()));
+                sorted.sort((a, b) -> {
+                    double priceA = a.getSalePrice() > 0 ? a.getSalePrice() : a.getPrice();
+                    double priceB = b.getSalePrice() > 0 ? b.getSalePrice() : b.getPrice();
+                    return Double.compare(priceB, priceA);
+                });
                 break;
             case BEST_SELLING:
                 sorted.sort((a, b) -> Integer.compare(b.getSoldCount(), a.getSoldCount()));

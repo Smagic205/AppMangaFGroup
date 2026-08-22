@@ -132,6 +132,8 @@ public class AdminOrderDetailActivity extends AdminBaseActivity {
         }
 
         int currentIndex = indexOf(mainFlow, order.getOrderStatus());
+        if (currentIndex == -1) return;
+        
         for (int i = 0; i <= currentIndex && i < mainFlow.length; i++) {
             String time = i == 0 ? PriceFormatter.formatDateTime(order.getCreatedAt()) : "";
             addTimelineStep(viewModel.getStatusLabel(mainFlow[i]), time, i == mainFlow.length - 1);
@@ -142,7 +144,7 @@ public class AdminOrderDetailActivity extends AdminBaseActivity {
         for (int i = 0; i < array.length; i++) {
             if (array[i].equals(value)) return i;
         }
-        return 0;
+        return -1;
     }
 
     private void addTimelineStep(String title, String time, boolean isLast) {
@@ -173,7 +175,7 @@ public class AdminOrderDetailActivity extends AdminBaseActivity {
             btnUpdateStatus.setVisibility(View.GONE);
         }
 
-        btnCancelOrder.setVisibility(isFinalState ? View.GONE : View.VISIBLE);
+        btnCancelOrder.setVisibility(isFinalState || Constants.ORDER_SHIPPING.equals(order.getOrderStatus()) ? View.GONE : View.VISIBLE);
     }
 
     private void handleUpdateStatus() {
@@ -188,7 +190,7 @@ public class AdminOrderDetailActivity extends AdminBaseActivity {
                 .setTitle("Hủy đơn hàng")
                 .setMessage("Bạn chắc chắn muốn hủy đơn hàng này?")
                 .setPositiveButton("Hủy đơn", (d, w) -> {
-                    if (currentOrder != null) viewModel.cancelOrder(orderId, currentOrder.getUserId());
+                    if (currentOrder != null) viewModel.cancelOrder(orderId, currentOrder.getUserId(), currentOrder.getOrderStatus());
                 })
                 .setNegativeButton("Đóng", null)
                 .show();

@@ -78,7 +78,6 @@ public class LoginActivity extends AppCompatActivity {
 
         viewModel.getLoginSuccess().observe(this, success -> {
             if (Boolean.TRUE.equals(success)) {
-                setLoading(false);
                 navigateByRole();
             }
         });
@@ -194,7 +193,9 @@ public class LoginActivity extends AppCompatActivity {
      * FirebaseAuth xác thực xong, hàm này tự query Firestore lấy field role.
      */
     private void navigateByRole() {
+        setLoading(true);
         com.example.bookapp.Utils.RoleChecker.checkRoleSilently(this, isAdmin -> {
+            setLoading(false);
             if (isAdmin) {
                 goToAdminDashboard();
             } else {

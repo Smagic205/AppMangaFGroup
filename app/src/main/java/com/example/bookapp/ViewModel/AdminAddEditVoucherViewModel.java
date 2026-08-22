@@ -28,8 +28,9 @@ public class AdminAddEditVoucherViewModel extends ViewModel {
     private final AdminVoucherRepository repository = new AdminVoucherRepository();
 
     private final MutableLiveData<Voucher> loadedVoucher = new MutableLiveData<>();
-    private final MutableLiveData<Boolean> saveSuccess = new MutableLiveData<>();
-    private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+    private final com.example.bookapp.Utils.SingleLiveEvent<Boolean> saveSuccess = new com.example.bookapp.Utils.SingleLiveEvent<>();
+    private final com.example.bookapp.Utils.SingleLiveEvent<Boolean> deleteSuccess = new com.example.bookapp.Utils.SingleLiveEvent<>();
+    private final com.example.bookapp.Utils.SingleLiveEvent<String> errorMessage = new com.example.bookapp.Utils.SingleLiveEvent<>();
 
     public LiveData<Voucher> getLoadedVoucher() {
         return loadedVoucher;
@@ -45,7 +46,7 @@ public class AdminAddEditVoucherViewModel extends ViewModel {
         repository.deleteVoucher(voucherId, new FirebaseCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                saveSuccess.setValue(true);
+                deleteSuccess.setValue(true);
             }
 
             @Override
@@ -57,6 +58,10 @@ public class AdminAddEditVoucherViewModel extends ViewModel {
 
     public LiveData<Boolean> getSaveSuccess() {
         return saveSuccess;
+    }
+
+    public LiveData<Boolean> getDeleteSuccess() {
+        return deleteSuccess;
     }
 
     public LiveData<String> getErrorMessage() {

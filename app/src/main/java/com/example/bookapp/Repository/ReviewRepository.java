@@ -20,7 +20,7 @@ import java.util.UUID;
 public class ReviewRepository {
 
     public void addReview(Review review, FirebaseCallback<Void> callback) {
-        String reviewId = UUID.randomUUID().toString();
+        String reviewId = review.getUserId() + "_" + review.getBookId() + "_" + review.getOrderId();
         review.setReviewId(reviewId);
 
         com.google.firebase.firestore.FirebaseFirestore db = FirebaseUtils.getFirestore();
@@ -28,6 +28,13 @@ public class ReviewRepository {
         com.google.firebase.firestore.DocumentReference reviewRef = db.collection(Constants.COLLECTION_REVIEWS).document(reviewId);
 
         db.runTransaction(transaction -> {
+            com.google.firebase.firestore.DocumentSnapshot reviewSnap = transaction.get(reviewRef);
+            if (reviewSnap.exists()) {
+                throw new com.google.firebase.firestore.FirebaseFirestoreException(
+                        "Bạn đã đánh giá sản phẩm này trong đơn hàng này rồi.",
+                        com.google.firebase.firestore.FirebaseFirestoreException.Code.ALREADY_EXISTS);
+            }
+
             com.google.firebase.firestore.DocumentSnapshot bookSnap = transaction.get(bookRef);
             if (bookSnap.exists()) {
                 double currentRating = bookSnap.getDouble("rating") != null ? bookSnap.getDouble("rating") : 0;
@@ -49,7 +56,6 @@ public class ReviewRepository {
 
         FirebaseUtils.getFirestore().collection(Constants.COLLECTION_REVIEWS)
                 .whereEqualTo("userId", uid)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
                     List<Review> reviews = new ArrayList<>();
@@ -57,6 +63,12 @@ public class ReviewRepository {
                         Review review = doc.toObject(Review.class);
                         review.setReviewId(doc.getId());
                         reviews.add(review);
+                    });
+                    reviews.sort((r1, r2) -> {
+                        if (r1.getCreatedAt() == null && r2.getCreatedAt() == null) return 0;
+                        if (r1.getCreatedAt() == null) return 1;
+                        if (r2.getCreatedAt() == null) return -1;
+                        return r2.getCreatedAt().compareTo(r1.getCreatedAt());
                     });
                     liveData.setValue(reviews);
                 })
@@ -121,13 +133,36 @@ public class ReviewRepository {
     }
 
     public void deleteReview(String reviewId, FirebaseCallback<Void> callback) {
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_REVIEWS)
-                .document(reviewId)
-                .delete()
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(callback::onFailure);
+        com.google.firebase.firestore.FirebaseFirestore db = FirebaseUtils.getFirestore();
+        com.google.firebase.firestore.DocumentReference reviewRef = db.collection(Constants.COLLECTION_REVIEWS).document(reviewId);
 
-        // TODO: cập nhật lại rating/ratingCount trung bình của book sau khi xóa -
-        // cũng nên xử lý bằng Cloud Function như addReview().
+        db.runTransaction(transaction -> {
+            com.google.firebase.firestore.DocumentSnapshot reviewSnap = transaction.get(reviewRef);
+            if (reviewSnap.exists()) {
+                String bookId = reviewSnap.getString("bookId");
+                Double reviewRating = reviewSnap.getDouble("rating");
+                
+                if (bookId != null && reviewRating != null) {
+                    com.google.firebase.firestore.DocumentReference bookRef = db.collection(Constants.COLLECTION_BOOKS).document(bookId);
+                    com.google.firebase.firestore.DocumentSnapshot bookSnap = transaction.get(bookRef);
+                    if (bookSnap.exists()) {
+                        double currentRating = bookSnap.getDouble("rating") != null ? bookSnap.getDouble("rating") : 0;
+                        long currentCount = bookSnap.getLong("ratingCount") != null ? bookSnap.getLong("ratingCount") : 0;
+                        
+                        if (currentCount > 1) {
+                            double newRating = ((currentRating * currentCount) - reviewRating) / (currentCount - 1);
+                            transaction.update(bookRef, "rating", newRating);
+                            transaction.update(bookRef, "ratingCount", currentCount - 1);
+                        } else {
+                            transaction.update(bookRef, "rating", 0.0);
+                            transaction.update(bookRef, "ratingCount", 0L);
+                        }
+                    }
+                }
+                transaction.delete(reviewRef);
+            }
+            return null;
+        }).addOnSuccessListener(unused -> callback.onSuccess(null))
+          .addOnFailureListener(callback::onFailure);
     }
 }

@@ -75,8 +75,9 @@ public class BookDetailActivity extends AppCompatActivity {
             if (book != null) {
                 currentBook = book;
                 bindBookData(book);
-                viewModel.loadRelatedBooks(bookId);
-                viewModel.incrementViewCount(bookId, book.getViewCount());
+                String categoryId = (book.getCategoryIds() != null && !book.getCategoryIds().isEmpty()) 
+                        ? book.getCategoryIds().get(0) : null;
+                viewModel.loadRelatedBooks(bookId, categoryId);
                 
                 progressBar.setVisibility(View.GONE);
                 clMainContent.setVisibility(View.VISIBLE);
@@ -130,6 +131,9 @@ public class BookDetailActivity extends AppCompatActivity {
             }
         });
 
+        if (bookId != null) {
+            viewModel.incrementViewCount(bookId);
+        }
     }
 
     @Override

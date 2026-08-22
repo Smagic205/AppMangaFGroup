@@ -180,13 +180,18 @@ public class AdminStatisticViewModel extends ViewModel {
         Calendar cal = Calendar.getInstance();
         Date toDate = cal.getTime();
 
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+
         switch (period) {
             case DAY:
-                cal.set(Calendar.HOUR_OF_DAY, 0);
-                cal.set(Calendar.MINUTE, 0);
-                cal.set(Calendar.SECOND, 0);
+                // Already set to 00:00:00 above
                 break;
             case WEEK:
+                cal.setFirstDayOfWeek(Calendar.MONDAY);
+                cal.getTime(); // Bắt buộc gọi để recompute week nếu hôm nay là Chủ nhật
                 cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
                 break;
             case MONTH:
@@ -199,10 +204,14 @@ public class AdminStatisticViewModel extends ViewModel {
         return new Date[]{cal.getTime(), toDate};
     }
 
+    private LiveData<List<Book>> currentTopBooksSource;
     /** Top N sách bán chạy — map từ Book sang AdminRankItem để AdminStatRankAdapter dùng chung. */
     public void loadTopBooks(int limit) {
-        LiveData<List<Book>> source = bookRepository.getTopSellingBooks(limit);
-        topBooks.addSource(source, books -> {
+        if (currentTopBooksSource != null) {
+            topBooks.removeSource(currentTopBooksSource);
+        }
+        currentTopBooksSource = bookRepository.getTopSellingBooks(limit);
+        topBooks.addSource(currentTopBooksSource, books -> {
             List<AdminRankItem> items = new ArrayList<>();
             if (books != null) {
                 for (Book b : books) {
@@ -214,14 +223,18 @@ public class AdminStatisticViewModel extends ViewModel {
         });
     }
 
+    private LiveData<List<Order>> currentTopCustomersSource;
     /**
      * Top N khách hàng mua nhiều đơn nhất — Firestore không hỗ trợ GROUP BY, nên đếm bằng
      * cách gom nhóm client-side trên danh sách đơn hàng đã tải (chấp nhận được ở quy mô
      * bài tập lớn; nếu dữ liệu lớn hơn nên chuyển sang Cloud Function tính sẵn).
      */
     public void loadTopCustomers(int limit) {
-        LiveData<List<Order>> ordersSource = orderRepository.observeAllOrders();
-        topCustomers.addSource(ordersSource, orders -> {
+        if (currentTopCustomersSource != null) {
+            topCustomers.removeSource(currentTopCustomersSource);
+        }
+        currentTopCustomersSource = orderRepository.observeAllOrders();
+        topCustomers.addSource(currentTopCustomersSource, orders -> {
             if (orders == null) return;
 
             Map<String, Integer> orderCountByUser = new HashMap<>();

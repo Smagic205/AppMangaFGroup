@@ -54,9 +54,18 @@ public class AdminOrderRepository {
     public LiveData<List<Order>> getOrdersByUserId(String userId) {
         MutableLiveData<List<Order>> result = new MutableLiveData<>();
         ordersRef.whereEqualTo(Constants.FIELD_USER_ID, userId)
-                .orderBy(Constants.FIELD_CREATED_AT, Query.Direction.DESCENDING)
                 .get()
-                .addOnSuccessListener(snapshots -> result.setValue(snapshots.toObjects(Order.class)));
+                .addOnSuccessListener(snapshots -> {
+                    List<Order> orders = snapshots.toObjects(Order.class);
+                    orders.sort((o1, o2) -> {
+                        if (o1.getCreatedAt() == null && o2.getCreatedAt() == null) return 0;
+                        if (o1.getCreatedAt() == null) return 1;
+                        if (o2.getCreatedAt() == null) return -1;
+                        return o2.getCreatedAt().compareTo(o1.getCreatedAt());
+                    });
+                    result.setValue(orders);
+                })
+                .addOnFailureListener(e -> result.setValue(new ArrayList<>()));
         return result;
     }
 
@@ -67,37 +76,55 @@ public class AdminOrderRepository {
      * này thành công, giữ mỗi Repository chỉ lo đúng 1 bảng.
      */
     public void updateOrderStatus(String orderId, String newStatus, FirebaseCallback<Void> callback) {
-        if (Constants.ORDER_DELIVERED.equals(newStatus)) {
-            ordersRef.document(orderId).get().addOnSuccessListener(doc -> {
-                Order order = doc.toObject(Order.class);
-                if (order != null && order.getItems() != null && !Constants.ORDER_DELIVERED.equals(order.getOrderStatus())) {
-                    FirebaseFirestore db = FirebaseUtils.getFirestore();
-                    WriteBatch batch = db.batch();
-                    
-                    batch.update(ordersRef.document(orderId), Constants.FIELD_ORDER_STATUS, newStatus);
-                    
-                    CollectionReference booksRef = db.collection(Constants.COLLECTION_BOOKS);
-                    for (OrderItem item : order.getItems()) {
-                        if (item.getBookId() != null) {
-                            DocumentReference bookRef = booksRef.document(item.getBookId());
-                            batch.update(bookRef, Constants.FIELD_SOLD_COUNT, FieldValue.increment(item.getQuantity()));
+        ordersRef.document(orderId).get().addOnSuccessListener(doc -> {
+            Order order = doc.toObject(Order.class);
+            if (order == null) {
+                callback.onFailure(new Exception("Order not found"));
+                return;
+            }
+            
+            String oldStatus = order.getOrderStatus();
+            if (newStatus.equals(oldStatus)) {
+                callback.onSuccess(null);
+                return;
+            }
+
+            FirebaseFirestore db = FirebaseUtils.getFirestore();
+            WriteBatch batch = db.batch();
+            batch.update(ordersRef.document(orderId), Constants.FIELD_ORDER_STATUS, newStatus);
+            
+            CollectionReference booksRef = db.collection(Constants.COLLECTION_BOOKS);
+
+            // If changing to DELIVERED from something else
+            if (Constants.ORDER_DELIVERED.equals(newStatus)) {
+                for (OrderItem item : order.getItems()) {
+                    if (item.getBookId() != null) {
+                        batch.update(booksRef.document(item.getBookId()), 
+                            Constants.FIELD_SOLD_COUNT, FieldValue.increment(item.getQuantity()));
+                    }
+                }
+            }
+            // If changing to CANCELLED from something else (Fix BUG-02)
+            else if (Constants.ORDER_CANCELLED.equals(newStatus)) {
+                for (OrderItem item : order.getItems()) {
+                    if (item.getBookId() != null) {
+                        // Restore stock
+                        batch.update(booksRef.document(item.getBookId()), 
+                            Constants.FIELD_STOCK, FieldValue.increment(item.getQuantity()));
+                        
+                        // If it was delivered, we also need to revert the soldCount
+                        if (Constants.ORDER_DELIVERED.equals(oldStatus)) {
+                            batch.update(booksRef.document(item.getBookId()), 
+                                Constants.FIELD_SOLD_COUNT, FieldValue.increment(-item.getQuantity()));
                         }
                     }
-                    
-                    batch.commit()
-                            .addOnSuccessListener(unused -> callback.onSuccess(null))
-                            .addOnFailureListener(callback::onFailure);
-                } else {
-                    ordersRef.document(orderId).update(Constants.FIELD_ORDER_STATUS, newStatus)
-                            .addOnSuccessListener(unused -> callback.onSuccess(null))
-                            .addOnFailureListener(callback::onFailure);
                 }
-            }).addOnFailureListener(callback::onFailure);
-        } else {
-            ordersRef.document(orderId).update(Constants.FIELD_ORDER_STATUS, newStatus)
+            }
+
+            batch.commit()
                     .addOnSuccessListener(unused -> callback.onSuccess(null))
                     .addOnFailureListener(callback::onFailure);
-        }
+        }).addOnFailureListener(callback::onFailure);
     }
 
     /** Hủy đơn — tách riêng hàm cho rõ ý nghĩa nghiệp vụ dù dùng chung logic updateOrderStatus. */

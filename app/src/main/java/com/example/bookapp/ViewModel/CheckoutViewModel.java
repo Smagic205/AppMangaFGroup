@@ -61,41 +61,55 @@ public class CheckoutViewModel extends ViewModel {
         List<OrderItem> items = new ArrayList<>();
         int[] remaining = {selectedBookIds.size()};
 
-        for (String bookId : selectedBookIds) {
-            cartRepository.getCartItems(uid).observeForever(cartItems -> {
-                // Tìm cart item phù hợp
-                CartItem targetItem = null;
-                if (cartItems != null) {
-                    for (CartItem ci : cartItems) {
-                        if (ci.getBookId().equals(bookId)) {
-                            targetItem = ci;
-                            break;
+        FirebaseUtils.getFirestore().collection("carts").document(uid)
+                .collection(Constants.SUBCOLLECTION_CART_ITEMS).get()
+                .addOnSuccessListener(cartSnap -> {
+                    List<CartItem> cartItems = new ArrayList<>();
+                    for (com.google.firebase.firestore.DocumentSnapshot doc : cartSnap.getDocuments()) {
+                        CartItem ci = doc.toObject(CartItem.class);
+                        if (ci != null) {
+                            ci.setBookId(doc.getId());
+                            cartItems.add(ci);
                         }
                     }
-                }
 
-                if (targetItem == null) {
-                    remaining[0]--;
-                    if (remaining[0] <= 0) _orderItems.setValue(items);
-                    return;
-                }
+                    for (String bookId : selectedBookIds) {
+                        CartItem targetItem = null;
+                        for (CartItem ci : cartItems) {
+                            if (ci.getBookId().equals(bookId)) {
+                                targetItem = ci;
+                                break;
+                            }
+                        }
 
-                final CartItem finalCartItem = targetItem;
-                bookRepository.getBook(bookId).observeForever(book -> {
-                    if (book != null) {
-                        items.add(new OrderItem(
-                                bookId,
-                                book.getTitle(),
-                                book.getCoverImageUrl(),
-                                finalCartItem.getPriceAtAdd(),
-                                finalCartItem.getQuantity()
-                        ));
+                        if (targetItem == null) {
+                            remaining[0]--;
+                            if (remaining[0] <= 0) _orderItems.setValue(items);
+                            continue;
+                        }
+
+                        final CartItem finalCartItem = targetItem;
+                        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
+                                .document(bookId).get()
+                                .addOnSuccessListener(bookSnap -> {
+                                    Book book = bookSnap.toObject(Book.class);
+                                    if (book != null) {
+                                        items.add(new OrderItem(
+                                                bookId,
+                                                book.getTitle(),
+                                                book.getCoverImageUrl(),
+                                                finalCartItem.getPriceAtAdd(),
+                                                finalCartItem.getQuantity()
+                                        ));
+                                    }
+                                    remaining[0]--;
+                                    if (remaining[0] <= 0) _orderItems.setValue(items);
+                                }).addOnFailureListener(e -> {
+                                    remaining[0]--;
+                                    if (remaining[0] <= 0) _orderItems.setValue(items);
+                                });
                     }
-                    remaining[0]--;
-                    if (remaining[0] <= 0) _orderItems.setValue(items);
-                });
-            });
-        }
+                }).addOnFailureListener(e -> _errorMessage.setValue(e.getMessage()));
     }
 
     public void loadAddress(String uid, String addressId) {
@@ -134,7 +148,7 @@ public class CheckoutViewModel extends ViewModel {
         Order order = new Order(
                 orderId, uid, orderItems, subtotal, shippingFee, discount,
                 voucher != null ? voucher.getCode() : null,
-                finalTotal, Constants.ORDER_PENDING, Constants.ORDER_PENDING,
+                finalTotal, Constants.ORDER_PENDING, Constants.PAYMENT_PENDING,
                 address, note, Timestamp.now()
         );
 

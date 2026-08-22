@@ -52,6 +52,8 @@ public class BookReviewsActivity extends AppCompatActivity {
         reviewAdapter = new BookReviewAdapter(this, new ArrayList<>());
         rvReviews.setAdapter(reviewAdapter);
 
+        // Ẩn mặc định, đợi ViewModel kiểm tra xem đã mua sách chưa
+        fabWriteReview.setVisibility(View.GONE);
         fabWriteReview.setOnClickListener(v -> {
             Intent intent = new Intent(this, WriteReviewActivity.class);
             intent.putExtra(WriteReviewActivity.EXTRA_BOOK_ID, bookId);
@@ -59,6 +61,14 @@ public class BookReviewsActivity extends AppCompatActivity {
         });
 
         viewModel = new ViewModelProvider(this).get(BookReviewsViewModel.class);
+
+        viewModel.getCanReview().observe(this, canReview -> {
+            if (Boolean.TRUE.equals(canReview)) {
+                fabWriteReview.setVisibility(View.VISIBLE);
+            } else {
+                fabWriteReview.setVisibility(View.GONE);
+            }
+        });
 
         viewModel.getReviews().observe(this, reviews -> {
             progressBar.setVisibility(View.GONE);
@@ -80,6 +90,7 @@ public class BookReviewsActivity extends AppCompatActivity {
         if (bookId != null) {
             progressBar.setVisibility(View.VISIBLE);
             viewModel.loadReviews(bookId);
+            viewModel.checkCanReview(bookId);
         } else {
             tvEmpty.setVisibility(View.VISIBLE);
         }

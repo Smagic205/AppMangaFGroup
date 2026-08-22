@@ -60,8 +60,6 @@ public class SelectVoucherActivity extends AppCompatActivity {
         VoucherAdapter adapter = new VoucherAdapter(voucherList, voucher -> {
             selectedVoucher = voucher;
             etVoucherCode.setText(voucher.getCode());
-            android.util.Log.d("SelectVoucher", "Đã chọn: " + voucher.getCode()
-                    + " kind=" + voucher.getKind() + " value=" + voucher.getValue());
         });
         rvVouchers.setAdapter(adapter);
 
@@ -71,12 +69,6 @@ public class SelectVoucherActivity extends AppCompatActivity {
             voucherList.clear();
             if (vouchers != null) {
                 voucherList.addAll(vouchers);
-                android.util.Log.d("SelectVoucher", "Đã tải " + vouchers.size() + " voucher");
-                for (Voucher v : vouchers) {
-                    android.util.Log.d("SelectVoucher", "  → code=" + v.getCode()
-                            + " kind=" + v.getKind() + " value=" + v.getValue()
-                            + " active=" + v.isActive());
-                }
             }
             adapter.notifyDataSetChanged();
         });
@@ -121,9 +113,6 @@ public class SelectVoucherActivity extends AppCompatActivity {
             Toast.makeText(this, "Vui lòng chọn hoặc nhập mã giảm giá hợp lệ", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        android.util.Log.d("SelectVoucher", "Trả về voucher: " + selectedVoucher.getCode()
-                + " kind=" + selectedVoucher.getKind() + " value=" + selectedVoucher.getValue());
 
         Intent result = new Intent();
         result.putExtra(EXTRA_SELECTED_VOUCHER, selectedVoucher);

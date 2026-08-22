@@ -54,9 +54,21 @@ public class AdminBookRepository {
                 .addOnFailureListener(callback::onFailure);
     }
 
-    /** Cập nhật toàn bộ thông tin sách — dùng khi Sửa sách ở AddEditBookActivity. */
     public void updateBook(@NonNull Book book, FirebaseCallback<Void> callback) {
-        booksRef.document(book.getBookId()).set(book)
+        java.util.Map<String, Object> updates = new java.util.HashMap<>();
+        updates.put("title", book.getTitle());
+        updates.put("description", book.getDescription());
+        updates.put("coverImageUrl", book.getCoverImageUrl());
+        updates.put("authorIds", book.getAuthorIds());
+        updates.put("publisherId", book.getPublisherId());
+        updates.put("categoryIds", book.getCategoryIds());
+        updates.put("price", book.getPrice());
+        updates.put("salePrice", book.getSalePrice());
+        updates.put("stock", book.getStock());
+        updates.put("isFeatured", book.isFeatured());
+        updates.put("isActive", book.isActive());
+
+        booksRef.document(book.getBookId()).update(updates)
                 .addOnSuccessListener(unused -> callback.onSuccess(null))
                 .addOnFailureListener(callback::onFailure);
     }

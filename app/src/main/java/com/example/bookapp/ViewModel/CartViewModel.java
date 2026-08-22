@@ -34,12 +34,18 @@ public class CartViewModel extends ViewModel {
     public LiveData<String> getErrorMessage() { return _errorMessage; }
 
     public void loadCart(String uid) {
-        cartRepository.getCartItems(uid).observeForever(items -> {
-            _cartItems.setValue(items);
-            if (items != null) {
-                fetchBookInfo(items);
+        LiveData<List<CartItem>> liveData = cartRepository.getCartItems(uid);
+        androidx.lifecycle.Observer<List<CartItem>> observer = new androidx.lifecycle.Observer<List<CartItem>>() {
+            @Override
+            public void onChanged(List<CartItem> items) {
+                _cartItems.setValue(items);
+                if (items != null) {
+                    fetchBookInfo(items);
+                }
+                liveData.removeObserver(this);
             }
-        });
+        };
+        liveData.observeForever(observer);
     }
 
     /**
@@ -54,13 +60,19 @@ public class CartViewModel extends ViewModel {
         for (CartItem item : items) {
             if (finalCache.containsKey(item.getBookId())) continue;
 
-            bookRepository.getBook(item.getBookId()).observeForever(book -> {
-                if (book != null) {
-                    finalCache.put(book.getBookId(),
-                            new String[]{book.getTitle(), book.getCoverImageUrl()});
-                    _bookInfoCache.setValue(finalCache);
+            LiveData<Book> liveData = bookRepository.getBook(item.getBookId());
+            androidx.lifecycle.Observer<Book> observer = new androidx.lifecycle.Observer<Book>() {
+                @Override
+                public void onChanged(Book book) {
+                    if (book != null) {
+                        finalCache.put(book.getBookId(),
+                                new String[]{book.getTitle(), book.getCoverImageUrl()});
+                        _bookInfoCache.setValue(finalCache);
+                    }
+                    liveData.removeObserver(this);
                 }
-            });
+            };
+            liveData.observeForever(observer);
         }
     }
 

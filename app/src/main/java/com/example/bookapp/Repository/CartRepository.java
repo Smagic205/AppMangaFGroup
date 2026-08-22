@@ -43,21 +43,29 @@ public class CartRepository {
         return liveData;
     }
 
-    /** Thêm sách vào giỏ (hoặc ghi đè nếu đã có sẵn bookId đó) - dùng ở BookDetailActivity. */
     public void addToCart(String uid, String bookId, int quantity, double priceAtAdd,
                            FirebaseCallback<Void> callback) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("bookId", bookId);
-        data.put("quantity", quantity);
-        data.put("priceAtAdd", priceAtAdd);
-        data.put("addedAt", Timestamp.now());
-
-        FirebaseUtils.getFirestore()
+        com.google.firebase.firestore.DocumentReference docRef = FirebaseUtils.getFirestore()
                 .collection(COLLECTION_CARTS).document(uid)
-                .collection(Constants.SUBCOLLECTION_CART_ITEMS).document(bookId)
-                .set(data)
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(callback::onFailure);
+                .collection(Constants.SUBCOLLECTION_CART_ITEMS).document(bookId);
+
+        FirebaseUtils.getFirestore().runTransaction(transaction -> {
+            com.google.firebase.firestore.DocumentSnapshot snapshot = transaction.get(docRef);
+            if (snapshot.exists()) {
+                Long currentQuantity = snapshot.getLong("quantity");
+                int newQuantity = (currentQuantity != null ? currentQuantity.intValue() : 0) + quantity;
+                transaction.update(docRef, "quantity", newQuantity);
+            } else {
+                Map<String, Object> data = new HashMap<>();
+                data.put("bookId", bookId);
+                data.put("quantity", quantity);
+                data.put("priceAtAdd", priceAtAdd);
+                data.put("addedAt", Timestamp.now());
+                transaction.set(docRef, data);
+            }
+            return null;
+        }).addOnSuccessListener(unused -> callback.onSuccess(null))
+          .addOnFailureListener(callback::onFailure);
     }
 
     public void updateQuantity(String uid, String bookId, int newQuantity, FirebaseCallback<Void> callback) {

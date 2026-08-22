@@ -114,7 +114,7 @@ public class Voucher implements Parcelable {
             case "percent":
                 return orderTotal * (value / 100.0);
             case "fixed":
-                return value;
+                return Math.min(value, orderTotal);
             case "freeship":
                 return 0; // phí ship = 0 được xử lý riêng trong CheckoutActivity
             default:

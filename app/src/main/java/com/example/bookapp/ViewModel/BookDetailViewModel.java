@@ -103,8 +103,8 @@ public class BookDetailViewModel extends ViewModel {
         });
     }
 
-    public void loadRelatedBooks(String excludeBookId) {
-        bookRepository.getRelatedBooks(excludeBookId).observeForever(
+    public void loadRelatedBooks(String excludeBookId, String categoryId) {
+        bookRepository.getRelatedBooks(excludeBookId, categoryId).observeForever(
                 books -> _relatedBooks.setValue(books));
     }
 
@@ -122,8 +122,8 @@ public class BookDetailViewModel extends ViewModel {
         });
     }
 
-    public void incrementViewCount(String bookId, int currentViewCount) {
-        bookRepository.incrementViewCount(bookId, currentViewCount);
+    public void incrementViewCount(String bookId) {
+        bookRepository.incrementViewCount(bookId);
     }
 
     public void resetAddToCartStatus() {

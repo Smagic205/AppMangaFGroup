@@ -253,8 +253,8 @@ public class AddEditAddressActivity extends AppCompatActivity {
             return;
         }
 
-        if (!phone.matches("\\d{10}")) {
-            Toast.makeText(this, "Số điện thoại không hợp lệ (phải gồm 10 chữ số)", Toast.LENGTH_SHORT).show();
+        if (!phone.matches("^(0|\\+84)[3|5|7|8|9]\\d{8}$")) {
+            Toast.makeText(this, "Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)", Toast.LENGTH_SHORT).show();
             return;
         }
 

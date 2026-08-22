@@ -74,6 +74,9 @@ public class HomeViewModel extends ViewModel {
     }
 
     private void loadNotifications(String uid) {
+        if (notificationLiveData != null && notificationObserver != null) {
+            notificationLiveData.removeObserver(notificationObserver);
+        }
         notificationLiveData = notificationRepository.getNotifications(uid);
         notificationObserver = notifications -> {
             boolean hasUnread = false;
@@ -91,6 +94,9 @@ public class HomeViewModel extends ViewModel {
     }
 
     private void loadAuthors() {
+        if (authorsLiveData != null && authorsObserver != null) {
+            authorsLiveData.removeObserver(authorsObserver);
+        }
         authorsLiveData = authorRepository.getAllAuthors();
         authorsObserver = authors -> {
             if (authors != null) {
@@ -105,18 +111,27 @@ public class HomeViewModel extends ViewModel {
     }
 
     private void loadUser(String uid) {
+        if (userLiveData != null && userObserver != null) {
+            userLiveData.removeObserver(userObserver);
+        }
         userLiveData = userRepository.getUser(uid);
         userObserver = user -> _currentUser.setValue(user);
         userLiveData.observeForever(userObserver);
     }
 
     private void loadCategories() {
+        if (categoryLiveData != null && categoryObserver != null) {
+            categoryLiveData.removeObserver(categoryObserver);
+        }
         categoryLiveData = categoryRepository.getActiveCategories();
         categoryObserver = categories -> _categories.setValue(categories);
         categoryLiveData.observeForever(categoryObserver);
     }
 
     private void loadFeaturedBooks() {
+        if (featuredBooksLiveData != null && featuredBooksObserver != null) {
+            featuredBooksLiveData.removeObserver(featuredBooksObserver);
+        }
         featuredBooksLiveData = bookRepository.getFeaturedBooks();
         featuredBooksObserver = books -> {
             tempFeaturedBooks = books;
@@ -126,6 +141,9 @@ public class HomeViewModel extends ViewModel {
     }
 
     private void loadAllBooks() {
+        if (allBooksLiveData != null && allBooksObserver != null) {
+            allBooksLiveData.removeObserver(allBooksObserver);
+        }
         allBooksLiveData = bookRepository.getAllActiveBooks();
         allBooksObserver = books -> {
             if (books != null && !books.isEmpty()) {

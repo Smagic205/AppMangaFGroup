@@ -24,13 +24,24 @@ public class BookRepository {
 
         FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
                 .document(bookId)
-                .get()
+                .get(com.google.firebase.firestore.Source.SERVER)
                 .addOnSuccessListener(doc -> {
                     Book book = doc.toObject(Book.class);
                     if (book != null) book.setBookId(doc.getId());
                     liveData.setValue(book);
                 })
-                .addOnFailureListener(e -> liveData.setValue(null));
+                .addOnFailureListener(e -> {
+                    // Fallback to cache if server unavailable
+                    FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
+                            .document(bookId)
+                            .get()
+                            .addOnSuccessListener(doc -> {
+                                Book book = doc.toObject(Book.class);
+                                if (book != null) book.setBookId(doc.getId());
+                                liveData.setValue(book);
+                            })
+                            .addOnFailureListener(e2 -> liveData.setValue(null));
+                });
 
         return liveData;
     }
@@ -62,13 +73,16 @@ public class BookRepository {
         return liveData;
     }
 
-    /** Sách liên quan ở BookDetailActivity - loại bỏ chính cuốn đang xem. */
-    public LiveData<List<Book>> getRelatedBooks(String excludeBookId) {
+    public LiveData<List<Book>> getRelatedBooks(String excludeBookId, String categoryId) {
         MutableLiveData<List<Book>> liveData = new MutableLiveData<>();
 
-        FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
-                .whereEqualTo(Constants.FIELD_IS_ACTIVE, true)
-                .limit(10)
+        Query query = FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
+                .whereEqualTo(Constants.FIELD_IS_ACTIVE, true);
+        if (categoryId != null && !categoryId.isEmpty()) {
+            query = query.whereArrayContains(Constants.FIELD_CATEGORY_IDS, categoryId);
+        }
+        
+        query.limit(10)
                 .get()
                 .addOnSuccessListener(qs -> {
                     List<Book> books = new ArrayList<>();
@@ -97,6 +111,13 @@ public class BookRepository {
 
         Query query = FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
                 .whereEqualTo(Constants.FIELD_IS_ACTIVE, true);
+
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            String q = keyword.trim();
+            // \uf8ff is a very high unicode code point used to simulate prefix search
+            query = query.whereGreaterThanOrEqualTo("title", q)
+                         .whereLessThanOrEqualTo("title", q + "\uf8ff");
+        }
 
         if (categoryId != null) {
             query = query.whereArrayContains("categoryIds", categoryId);
@@ -137,10 +158,10 @@ public class BookRepository {
     }
 
     /** Tăng viewCount mỗi lần xem chi tiết sách - không cần chờ kết quả trả về. */
-    public void incrementViewCount(String bookId, int currentViewCount) {
+    public void incrementViewCount(String bookId) {
         FirebaseUtils.getFirestore().collection(Constants.COLLECTION_BOOKS)
                 .document(bookId)
-                .update("viewCount", currentViewCount + 1);
+                .update("viewCount", com.google.firebase.firestore.FieldValue.increment(1));
     }
 
     private List<Book> toBookList(com.google.firebase.firestore.QuerySnapshot querySnapshot) {

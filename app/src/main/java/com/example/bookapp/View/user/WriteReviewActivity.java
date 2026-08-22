@@ -77,7 +77,7 @@ public class WriteReviewActivity extends AppCompatActivity {
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null) {
                 btnSubmit.setEnabled(true);
-                Toast.makeText(this, "Có lỗi xảy ra, vui lòng thử lại", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, error, Toast.LENGTH_LONG).show();
             }
         });
 
@@ -133,7 +133,11 @@ public class WriteReviewActivity extends AppCompatActivity {
         }
 
         String uid = FirebaseUtils.getCurrentUserId();
-        if (uid == null) return;
+        if (uid == null) {
+            Toast.makeText(this, "Vui lòng đăng nhập để đánh giá", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
         btnSubmit.setEnabled(false);
         viewModel.submitReview(uid, bookId, selectedRating, comment, orderId);

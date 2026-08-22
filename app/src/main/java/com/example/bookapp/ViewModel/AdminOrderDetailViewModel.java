@@ -99,7 +99,11 @@ public class AdminOrderDetailViewModel extends ViewModel {
         });
     }
 
-    public void cancelOrder(String orderId, String userId) {
+    public void cancelOrder(String orderId, String userId, String currentStatus) {
+        if (Constants.ORDER_DELIVERED.equals(currentStatus) || Constants.ORDER_SHIPPING.equals(currentStatus)) {
+            errorMessage.setValue("Không thể hủy đơn hàng đang giao hoặc đã giao");
+            return;
+        }
         orderRepository.cancelOrder(orderId, new FirebaseCallback<Void>() {
             @Override
             public void onSuccess(Void result) {

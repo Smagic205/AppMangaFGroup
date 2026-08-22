@@ -67,12 +67,20 @@ public class OrderDetailActivity extends AppCompatActivity {
         btnCancelOrder.setOnClickListener(v -> confirmCancelOrder());
         btnReviewOrder.setOnClickListener(v -> {
             Order currentOrder = viewModel.getOrder().getValue();
-            // Mở màn viết đánh giá cho từng sách trong đơn (đơn giản hoá: mở sách đầu tiên)
             if (currentOrder != null && !currentOrder.getItems().isEmpty()) {
-                Intent intent = new Intent(this, WriteReviewActivity.class);
-                intent.putExtra(WriteReviewActivity.EXTRA_ORDER_ID, orderId);
-                intent.putExtra(WriteReviewActivity.EXTRA_BOOK_ID, currentOrder.getItems().get(0).getBookId());
-                startActivity(intent);
+                String[] bookTitles = new String[currentOrder.getItems().size()];
+                for (int i = 0; i < currentOrder.getItems().size(); i++) {
+                    bookTitles[i] = currentOrder.getItems().get(i).getTitle();
+                }
+                new AlertDialog.Builder(this)
+                        .setTitle("Chọn sách để đánh giá")
+                        .setItems(bookTitles, (dialog, which) -> {
+                            Intent intent = new Intent(this, WriteReviewActivity.class);
+                            intent.putExtra(WriteReviewActivity.EXTRA_ORDER_ID, orderId);
+                            intent.putExtra(WriteReviewActivity.EXTRA_BOOK_ID, currentOrder.getItems().get(which).getBookId());
+                            startActivity(intent);
+                        })
+                        .show();
             }
         });
     }
@@ -152,6 +160,11 @@ public class OrderDetailActivity extends AppCompatActivity {
         } else if ("delivered".equals(status)) {
             s1 = 2; s2 = 2; s3 = 2; s4 = 2; l1 = 1; l2 = 1; l3 = 1;
             t1 = 2; t2 = 2; t3 = 2; t4 = 1;
+        } else if ("cancelled".equals(status)) {
+            // Đơn bị hủy — tất cả dot/line đều inactive (xám)
+            s1 = 0; s2 = 0; s3 = 0; s4 = 0;
+            l1 = 0; l2 = 0; l3 = 0;
+            t1 = 0; t2 = 0; t3 = 0; t4 = 0;
         } else {
             s1 = 1; t1 = 1;
         }
@@ -199,6 +212,7 @@ public class OrderDetailActivity extends AppCompatActivity {
     }
 
     private String mapStatusToLabel(String status) {
+        if (status == null) return "Không xác định";
         switch (status) {
             case "pending": return "Chờ xác nhận";
             case "confirmed": return "Đã xác nhận";

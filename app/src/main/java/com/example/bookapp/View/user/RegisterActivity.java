@@ -75,16 +75,16 @@ public class RegisterActivity extends AppCompatActivity {
         String password = etPassword.getText().toString();
         String confirmPassword = etConfirmPassword.getText().toString();
 
-        if (TextUtils.isEmpty(fullName)) {
-            etFullName.setError("Vui lòng nhập họ tên");
+        if (TextUtils.isEmpty(fullName) || fullName.length() < 2) {
+            etFullName.setError("Họ tên phải có ít nhất 2 ký tự");
             return;
         }
         if (TextUtils.isEmpty(email) || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             etEmail.setError("Email không hợp lệ");
             return;
         }
-        if (TextUtils.isEmpty(phone) || !phone.matches("\\d{10}")) {
-            etPhone.setError("Số điện thoại phải gồm 10 chữ số");
+        if (TextUtils.isEmpty(phone) || !phone.matches("^(0|\\+84)[3|5|7|8|9]\\d{8}$")) {
+            etPhone.setError("SĐT không hợp lệ (VD: 0912345678)");
             return;
         }
         if (password.length() < 6 || password.length() > 12) {
